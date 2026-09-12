@@ -23,7 +23,11 @@ public interface ErrorCode {
         UNAUTHORIZED(20000, "未登录或Token已过期"),
         FORBIDDEN(20001, "无权限访问"),
         INVALID_TOKEN(20002, "无效Token"),
-        ACCOUNT_DISABLED(20003, "账号已被禁用");
+        ACCOUNT_DISABLED(20003, "账号已被禁用"),
+        SMS_CODE_INVALID(20004, "验证码错误"),
+        SMS_CODE_EXPIRED(20005, "验证码已过期或未发送"),
+        SMS_SEND_TOO_FREQUENT(20006, "验证码发送过于频繁，请稍后再试"),
+        SMS_CODE_FAIL_LIMIT(20007, "验证码错误次数过多，请重新获取");
 
         private final int code;
         private final String msg;
@@ -46,7 +50,10 @@ public interface ErrorCode {
         PRICE_CHANGED(30008, "商品价格已变更"),
         PAY_AMOUNT_MISMATCH(30009, "支付金额不匹配"),
         DUPLICATE_PAYMENT(30010, "重复支付"),
-        REFUND_NOT_ALLOWED(30011, "不允许退款");
+        REFUND_NOT_ALLOWED(30011, "不允许退款"),
+        MEMBER_NOT_FOUND(30012, "用户不存在"),
+        CATEGORY_NOT_FOUND(30013, "商品分类不存在"),
+        SKU_NOT_FOUND(30014, "商品规格不存在");
 
         private final int code;
         private final String msg;

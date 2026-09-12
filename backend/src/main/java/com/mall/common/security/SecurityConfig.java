@@ -1,11 +1,12 @@
 package com.mall.common.security;
 
-import com.mall.common.R;
-import com.mall.common.ErrorCode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mall.common.ErrorCode;
+import com.mall.common.R;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -15,13 +16,36 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import java.nio.charset.StandardCharsets;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+import java.nio.charset.StandardCharsets;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
+
+    /** 免登录白名单：认证接口、接口文档、错误页 */
+    private static final String[] PUBLIC_URLS = {
+            "/api/auth/**",
+            "/doc.html",
+            "/swagger-ui/**",
+            "/swagger-ui.html",
+            "/v3/api-docs/**",
+            "/webjars/**",
+            "/favicon.ico",
+            "/error"
+    };
+
+    /**
+     * 游客可访问的商品浏览接口（精确白名单，不用 /api/product/** 通配）。
+     * 后续商家端/平台端的只读接口请走 /api/shop/**、/api/admin/** 前缀，默认需要登录。
+     */
+    private static final String[] PUBLIC_GET_URLS = {
+            "/api/product/categories/tree",
+            "/api/product/spus",
+            "/api/product/spus/*"
+    };
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final ObjectMapper objectMapper;
@@ -35,16 +59,14 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(AbstractHttpConfigurer::disable)
+            .httpBasic(AbstractHttpConfigurer::disable)
+            .formLogin(AbstractHttpConfigurer::disable)
+            .logout(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers(
-                    "/api/auth/**",
-                    "/doc.html",
-                    "/swagger-ui/**",
-                    "/v3/api-docs/**",
-                    "/webjars/**",
-                    "/favicon.ico"
-                ).permitAll()
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                .requestMatchers(PUBLIC_URLS).permitAll()
+                .requestMatchers(HttpMethod.GET, PUBLIC_GET_URLS).permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)

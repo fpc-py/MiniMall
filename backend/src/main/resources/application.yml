@@ -48,8 +48,19 @@ mybatis-plus:
     map-underscore-to-camel-case: true
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
 
-# JWT
 mall:
+  # JWT：仓库内只放开发用密钥，生产用 application-local.yml / 环境变量覆盖
   jwt:
     secret: mall-dev-secret-key-change-in-production-at-least-256-bits
     expiration: 86400000
+  # 短信验证码登录
+  sms:
+    # 未接入真实短信服务商：mock 模式下发送接口回显验证码，方便本地联调；生产必须置为 false
+    mock-enabled: true
+    code-length: 6
+    # 验证码有效期（秒）
+    code-ttl-seconds: 60
+    # 同一手机号两次发送的最小间隔（秒）
+    send-interval-seconds: 60
+    # 同一验证码最大校验失败次数，超过即作废
+    max-verify-fails: 5
