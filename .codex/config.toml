@@ -1,0 +1,23 @@
+# mall-v1/.codex/config.toml
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+# ---- MCP 服务器：只开本项目真正需要的，不要贪多 ----
+
+# (1) MySQL：让 Codex 能看表结构、跑只读查询、执行 DDL（开发库）
+[mcp_servers.mysql]
+command = "npx"
+args = ["-y", "@benborla29/mcp-server-mysql"]
+env = { MYSQL_HOST = "127.0.0.1", MYSQL_PORT = "3306",
+        MYSQL_USER = "root", MYSQL_PASS = "123456",
+        MYSQL_DB = "mall_v1" }
+
+# (2) 浏览器/E2E：前端联调、自动打开页面看渲染
+[mcp_servers.playwright]
+command = "npx"
+args = ["-y", "@playwright/mcp@latest"]
+
+# (3) 顺序思考：复杂事务/状态机设计时辅助拆解（可选）
+[mcp_servers.sequential-thinking]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-sequential-thinking"]
