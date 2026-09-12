@@ -1,30 +1,58 @@
-# Java
+# ===== Java / Maven =====
 *.class
 *.jar
 *.war
+*.ear
 target/
+# Maven 本地仓库缓存（约 94MB 二进制，禁止入库）
+.m2-repo/
+.mvn/wrapper/maven-wrapper.jar
+hs_err_pid*
+replay_pid*
 
-# Node
+# ===== Node / 前端 =====
 node_modules/
 dist/
+dist-ssr/
+coverage/
+.npm/
+.pnpm-store/
 
-# IDE
+# ===== IDE =====
 .idea/
 *.iml
+*.ipr
+*.iws
 .vscode/
 .settings/
 .project
 .classpath
+.fleet/
 
-# OS
+# ===== OS =====
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# Env
+# ===== 本地配置与密钥（禁止入库）=====
+*.local
 *.local.*
 application-local.yml
 .env
 .env.local
+.env.*.local
 
-# Logs
+# ===== 日志与临时/备份文件 =====
 *.log
+logs/
+*.tmp
+*.bak
+*.orig
+*.rej
+*.swp
+
+# ===== 本地工具数据 =====
+.cc-switch/
+
+# ===== 编辑器备份文件 =====
+*~
