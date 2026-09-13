@@ -2,10 +2,11 @@
 FROM eclipse-temurin:21-jdk-alpine AS builder
 WORKDIR /build
 
-# 先复制 Maven wrapper 和 pom.xml 以利用 Docker 缓存
-COPY mvnw mvnw.cmd .mvn .mvn/
-COPY pom.xml .
-RUN ./mvnw dependency:go-offline -B -q || true
+# 复制 Maven wrapper 和 pom.xml（利用 Docker 缓存层）
+COPY mvnw mvnw.cmd ./
+COPY .mvn .mvn/
+COPY pom.xml ./
+RUN chmod +x mvnw && ./mvnw dependency:go-offline -B -q || true
 
 # 复制源码并编译打包
 COPY src src/
