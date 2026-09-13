@@ -2,7 +2,7 @@
   <div class="home-page">
     <!-- 顶部搜索栏 -->
     <div class="search-header">
-      <div class="search-bar">
+      <div class="search-bar" @click="$router.push('/search')">
         <van-icon name="search" size="16" color="#999" />
         <span class="search-text">搜一搜心仪好物</span>
       </div>
@@ -26,7 +26,7 @@
       <div class="nav-grid">
         <div
           class="nav-item"
-          v-for="(item, i) in navItems"
+          v-for="(item, i) in navItems" @click="$router.push('/product/' + (i+1))"
           :key="i"
         >
           <div class="nav-icon" :style="{ background: item.bg }">
@@ -63,7 +63,7 @@
         <span class="flash-more">更多 ›</span>
       </div>
       <div class="flash-list">
-        <div class="flash-item" v-for="(item, i) in flashItems" :key="i">
+        <div class="flash-item" v-for="(item, i) in flashItems" :key="i" @click="$router.push('/product/' + (i+1))">
           <div class="flash-img">
             <van-icon :name="item.icon" :size="36" :color="item.color" />
           </div>
@@ -86,7 +86,7 @@
       <div class="product-grid">
         <div
           class="product-card"
-          v-for="(item, i) in recommendList"
+          v-for="(item, i) in recommendList" @click="$router.push('/product/' + (i+1))"
           :key="i"
         >
           <div class="product-img">

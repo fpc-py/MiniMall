@@ -1,22 +1,25 @@
-# ============ Stage 1: Build with Maven wrapper & JDK 21 ============
+# ============ Stage 1: Build ============
 FROM eclipse-temurin:21-jdk-alpine AS builder
 WORKDIR /build
 
-# 复制 Maven wrapper 和 pom.xml（利用 Docker 缓存层）
 COPY mvnw mvnw.cmd ./
 COPY .mvn .mvn/
-COPY pom.xml ./
-RUN chmod +x mvnw && ./mvnw dependency:go-offline -B -q || true
+COPY pom.xml .
 
-# 复制源码并编译打包
+# alpine sed清理windows换行\r
+RUN sed -i 's/\r//' mvnw
+
+# 使用 sh 而不是 bash，alpine自带sh
+RUN sh mvnw dependency:go-offline -B -q
+
 COPY src src/
-RUN ./mvnw package -DskipTests -B -q
+RUN sh mvnw package -DskipTests -B -q
 
 # ============ Stage 2: Runtime with JRE 21 ============
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
-# 时区
+# 设置上海时区
 RUN apk add --no-cache tzdata && \
     cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
     echo "Asia/Shanghai" > /etc/timezone

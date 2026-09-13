@@ -1,5 +1,5 @@
 <div align="center">
-  <h1>🛒 cc-switch Mall</h1>
+  <h1>🛒 Mall</h1>
   <p><strong>单体可商用商城系统 · 全栈交易闭环</strong></p>
   <p>
     <img src="https://img.shields.io/badge/Java-21-blue?logo=openjdk" />
@@ -43,7 +43,6 @@
 
 ```
 mall-v1/
-├── AGENTS.md                    # AI 开发规范
 ├── docker-compose.yml           # 全栈编排（6 服务）
 ├── nginx-admin.conf             # 管理后台 Nginx 配置
 ├── nginx-mobile.conf            # 移动端 H5 Nginx 配置

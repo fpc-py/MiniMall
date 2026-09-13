@@ -28,6 +28,7 @@ public class SecurityConfig {
     /** 免登录白名单：认证接口、接口文档、错误页 */
     private static final String[] PUBLIC_URLS = {
             "/api/auth/**",
+            "/api/admin/login",
             "/doc.html",
             "/swagger-ui/**",
             "/swagger-ui.html",
@@ -66,6 +67,10 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers(PUBLIC_URLS).permitAll()
                 .requestMatchers(HttpMethod.GET, PUBLIC_GET_URLS).permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/admin/login").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/auth/sms/**").permitAll()
                 // 商家端接口需要登录（由 @RequirePermission 进一步控制权限）
                 .requestMatchers("/api/shop/**").authenticated()
                 // 平台端接口需要登录（由 @RequirePermission 进一步控制权限）
