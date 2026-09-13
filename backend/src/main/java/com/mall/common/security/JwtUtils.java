@@ -21,6 +21,7 @@ public class JwtUtils {
 
     public static final String CLAIM_USERNAME = "username";
     public static final String CLAIM_USER_TYPE = "userType";
+    public static final String CLAIM_SHOP_ID = "shopId";
 
     private final SecretKey secretKey;
     private final long expiration;
@@ -33,19 +34,26 @@ public class JwtUtils {
 
     /** 会员 Token */
     public String generateToken(Long userId, String username) {
-        return generateToken(userId, username, UserType.MEMBER);
+        return generateToken(userId, username, UserType.MEMBER, null);
     }
 
     public String generateToken(Long userId, String username, UserType userType) {
+        return generateToken(userId, username, userType, null);
+    }
+
+    public String generateToken(Long userId, String username, UserType userType, Long shopId) {
         Date now = new Date();
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .subject(String.valueOf(userId))
                 .claim(CLAIM_USERNAME, username)
                 .claim(CLAIM_USER_TYPE, (userType == null ? UserType.MEMBER : userType).getCode())
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + expiration))
-                .signWith(secretKey)
-                .compact();
+                .signWith(secretKey);
+        if (shopId != null) {
+            builder.claim(CLAIM_SHOP_ID, shopId);
+        }
+        return builder.compact();
     }
 
     /** 解析 Token；签名错误/过期会抛 JwtException，由调用方处理 */
@@ -85,7 +93,8 @@ public class JwtUtils {
         Long userId = Long.valueOf(claims.getSubject());
         String username = claims.get(CLAIM_USERNAME, String.class);
         UserType type = UserType.of(claims.get(CLAIM_USER_TYPE, String.class));
-        return new LoginUser(userId, username, type == null ? UserType.MEMBER : type);
+        Long shopId = claims.get(CLAIM_SHOP_ID, Long.class);
+        return new LoginUser(userId, username, type == null ? UserType.MEMBER : type, shopId);
     }
 
     /** Token 有效期（毫秒） */

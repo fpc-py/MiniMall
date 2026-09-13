@@ -27,7 +27,9 @@ public interface ErrorCode {
         SMS_CODE_INVALID(20004, "验证码错误"),
         SMS_CODE_EXPIRED(20005, "验证码已过期或未发送"),
         SMS_SEND_TOO_FREQUENT(20006, "验证码发送过于频繁，请稍后再试"),
-        SMS_CODE_FAIL_LIMIT(20007, "验证码错误次数过多，请重新获取");
+        SMS_CODE_FAIL_LIMIT(20007, "验证码错误次数过多，请重新获取"),
+        NO_PERMISSION(20008, "没有操作权限"),
+        NOT_SHOP_USER(20009, "当前用户不是商家用户");
 
         private final int code;
         private final String msg;
@@ -53,7 +55,10 @@ public interface ErrorCode {
         REFUND_NOT_ALLOWED(30011, "不允许退款"),
         MEMBER_NOT_FOUND(30012, "用户不存在"),
         CATEGORY_NOT_FOUND(30013, "商品分类不存在"),
-        SKU_NOT_FOUND(30014, "商品规格不存在");
+        SKU_NOT_FOUND(30014, "商品规格不存在"),
+        SHOP_NOT_FOUND(30015, "店铺不存在"),
+        SHOP_NOT_OPEN(30016, "店铺未启用"),
+        AUDIT_NOT_FOUND(30017, "审核申请不存在");
 
         private final int code;
         private final String msg;

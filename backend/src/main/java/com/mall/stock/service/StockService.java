@@ -6,6 +6,7 @@ import com.mall.common.ErrorCode;
 import com.mall.common.MallException;
 import com.mall.stock.entity.Stock;
 import com.mall.stock.entity.StockLock;
+import com.mall.stock.mapper.OutboundTaskMapper;
 import com.mall.stock.mapper.StockLockMapper;
 import com.mall.stock.mapper.StockMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +34,7 @@ public class StockService {
     private final StringRedisTemplate redisTemplate;
     private final StockMapper stockMapper;
     private final StockLockMapper stockLockMapper;
+    private final OutboundTaskMapper outboundTaskMapper;
 
     private final DefaultRedisScript<Long> preoccupyScript;
     private final DefaultRedisScript<Long> releaseScript;
@@ -44,12 +46,14 @@ public class StockService {
     public StockService(StringRedisTemplate redisTemplate,
                         StockMapper stockMapper,
                         StockLockMapper stockLockMapper,
+                        OutboundTaskMapper outboundTaskMapper,
                         DefaultRedisScript<Long> preoccupyScript,
                         DefaultRedisScript<Long> releaseScript,
                         DefaultRedisScript<Long> deductScript) {
         this.redisTemplate = redisTemplate;
         this.stockMapper = stockMapper;
         this.stockLockMapper = stockLockMapper;
+        this.outboundTaskMapper = outboundTaskMapper;
         this.preoccupyScript = preoccupyScript;
         this.releaseScript = releaseScript;
         this.deductScript = deductScript;
@@ -200,6 +204,20 @@ public class StockService {
                 .eq(Stock::getWarehouseCode, "default"));
         return stock == null ? 0 : (stock.getAvailableStock() == null ? 0 : stock.getAvailableStock());
     }
-}
 
+    /**
+     * 出库任务标记为已出库（商家发货时调用）。
+     */
+    public void updateOutboundTaskShipped(Long orderId) {
+        com.mall.stock.entity.OutboundTask task = outboundTaskMapper.selectOne(
+                com.baomidou.mybatisplus.core.toolkit.Wrappers.<com.mall.stock.entity.OutboundTask>lambdaQuery()
+                        .eq(com.mall.stock.entity.OutboundTask::getOrderId, orderId));
+        if (task != null) {
+            task.setStatus(2); // 已出库
+            task.setOutboundTime(java.time.LocalDateTime.now());
+            outboundTaskMapper.updateById(task);
+        }
+    }
+
+}
 

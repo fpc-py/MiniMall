@@ -8,8 +8,13 @@ import java.io.Serializable;
  * @param userId   会员ID 或 系统用户ID
  * @param username 用户名
  * @param userType 主体类型
+ * @param shopId   店铺ID（仅系统用户中的商家有此值，平台用户为null）
  */
-public record LoginUser(Long userId, String username, UserType userType) implements Serializable {
+public record LoginUser(Long userId, String username, UserType userType, Long shopId) implements Serializable {
+
+    public LoginUser(Long userId, String username, UserType userType) {
+        this(userId, username, userType, null);
+    }
 
     public boolean isMember() {
         return userType == UserType.MEMBER;

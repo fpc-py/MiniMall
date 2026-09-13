@@ -33,7 +33,7 @@ import java.util.List;
  * <p>
  * create: 创建 pay_payment（沙箱模拟），调用 PayChannel 生成支付凭证。
  * callback: 幂等处理——第三方交易号唯一索引保证重复回调直接返回成功。
- *           成功回调：订单 -> 待发货，扣 wms_stock，生成 wms_outbound_task。
+ *           成功回调：订单 10待支付 -> 20待发货，扣 wms_stock，生成 wms_outbound_task。
  */
 @Slf4j
 @Service
@@ -44,8 +44,9 @@ public class PayService {
     public static final int PAY_SUCCESS = 1;
     public static final int PAY_FAILED = 2;
 
-    public static final int ORDER_PENDING_PAY = 0;
-    public static final int ORDER_PENDING_SHIP = 1;
+    // 订单状态（按状态机）
+    public static final int ORDER_PENDING_PAY = 10;
+    public static final int ORDER_PENDING_SHIP = 20;
     public static final int ORDER_CANCELLED = 5;
 
     private final PaymentMapper paymentMapper;
@@ -75,32 +76,26 @@ public class PayService {
     // ==================== create ====================
 
     public PayCreateVO create(Long userId, PayCreateRequest req) {
-        // 查订单
         Order order = orderService.findById(req.getOrderId());
 
-        // 资源归属校验
         if (!order.getMemberId().equals(userId)) {
             throw new MallException(ErrorCode.Auth.FORBIDDEN);
         }
 
-        // 订单状态校验：只有待付款订单才能发起支付
         if (order.getOrderStatus() == null || order.getOrderStatus() != ORDER_PENDING_PAY) {
             throw new MallException(ErrorCode.Biz.ORDER_STATUS_INVALID, "订单不在待付款状态");
         }
 
-        // 检查是否已有待支付记录（防止重复创建）
         Payment existing = paymentMapper.selectOne(Wrappers.<Payment>lambdaQuery()
                 .eq(Payment::getOrderId, order.getId())
                 .eq(Payment::getStatus, PAY_PENDING)
                 .last("LIMIT 1"));
         if (existing != null) {
-            // 已有待支付记录，直接返回
             PayChannel.PayResult result = payChannel.pay(
                     existing.getTransactionNo(), existing.getPayAmount(), req.getPayMethod());
             return buildPayCreateVO(existing, result);
         }
 
-        // 创建支付记录
         String transactionNo = generateTransactionNo();
         Payment payment = new Payment();
         payment.setOrderId(order.getId());
@@ -114,16 +109,14 @@ public class PayService {
         try {
             paymentMapper.insert(payment);
         } catch (DuplicateKeyException e) {
-            // transaction_no 唯一索引冲突：极小概率，重新生成
             log.warn("交易号冲突，重试: {}", transactionNo);
             transactionNo = generateTransactionNo();
             payment.setTransactionNo(transactionNo);
             paymentMapper.insert(payment);
         }
 
-        // 调用支付渠道
         PayChannel.PayResult result = payChannel.pay(
-                transactionNo, order.getPayAmount(), req.getPayMethod());
+                transactionNo, payment.getPayAmount(), req.getPayMethod());
 
         log.info("创建支付: paymentId={}, txNo={}, orderNo={}", payment.getId(), transactionNo, order.getOrderNo());
 
@@ -132,21 +125,13 @@ public class PayService {
 
     // ==================== callback ====================
 
-    /**
-     * 支付回调：幂等处理。
-     * <p>
-     * 幂等保障：transaction_no 唯一索引。
-     * 重复回调：查到 status=1（成功）的直接返回 true，不重复扣库存/改状态。
-     */
     @Transactional(rollbackFor = Exception.class)
     public boolean callback(PayCallbackRequest req) {
-        // 1. 校验回调签名
         if (!payChannel.verifyCallback(req.getCallbackContent())) {
             log.warn("回调签名校验失败: txNo={}", req.getTransactionNo());
             return false;
         }
 
-        // 2. 查支付记录
         Payment payment = paymentMapper.selectOne(Wrappers.<Payment>lambdaQuery()
                 .eq(Payment::getTransactionNo, req.getTransactionNo())
                 .last("LIMIT 1"));
@@ -155,19 +140,16 @@ public class PayService {
             return false;
         }
 
-        // 3. 幂等：已成功则直接返回 true
         if (payment.getStatus() != null && payment.getStatus() == PAY_SUCCESS) {
             log.info("重复回调直接返回成功: txNo={}", req.getTransactionNo());
             return true;
         }
 
-        // 4. 金额校验
         if (req.getAmount() != null && payment.getPayAmount().compareTo(req.getAmount()) != 0) {
             log.error("回调金额不匹配: expected={}, actual={}", payment.getPayAmount(), req.getAmount());
             throw new MallException(ErrorCode.Biz.PAY_AMOUNT_MISMATCH);
         }
 
-        // 5. 支付失败
         if (req.getStatus() != null && req.getStatus() == PAY_FAILED) {
             payment.setStatus(PAY_FAILED);
             payment.setCallbackContent(req.getCallbackContent());
@@ -176,13 +158,11 @@ public class PayService {
             return true;
         }
 
-        // 6. 支付成功：更新支付记录
         payment.setStatus(PAY_SUCCESS);
         payment.setPayTime(LocalDateTime.now());
         payment.setCallbackContent(req.getCallbackContent());
         paymentMapper.updateById(payment);
 
-        // 7. 更新订单：待付款 -> 待发货
         Order order = orderService.findByOrderNo(payment.getOrderNo());
         if (order == null) {
             log.error("支付回调找不到订单: orderNo={}", payment.getOrderNo());
@@ -191,23 +171,21 @@ public class PayService {
 
         int fromStatus = order.getOrderStatus() == null ? -1 : order.getOrderStatus();
         order.setOrderStatus(ORDER_PENDING_SHIP);
-        order.setPayStatus(1); // 已支付
+        order.setPayStatus(1);
         order.setPayMethod(payment.getPayMethod());
         order.setPaymentTime(LocalDateTime.now());
         orderService.updateOrder(order);
         orderService.logStatus(order, fromStatus, ORDER_PENDING_SHIP, 0, null, "支付成功");
 
-        // 8. 扣减冻结库存：Redis frozen -= qty, DB frozen -= qty & total -= qty
         List<StockLock> locks = stockLockMapper.selectList(Wrappers.<StockLock>lambdaQuery()
                 .eq(StockLock::getOrderId, order.getId())
-                .eq(StockLock::getStatus, 0)); // 锁定中
+                .eq(StockLock::getStatus, 0));
         for (StockLock lock : locks) {
             stockService.deductFrozen(lock.getSkuId(), lock.getQuantity());
-            lock.setStatus(1); // 已出库
+            lock.setStatus(1);
             stockLockMapper.updateById(lock);
         }
 
-        // 9. 生成出库任务
         List<OrderItem> items = orderItemMapper.selectList(Wrappers.<OrderItem>lambdaQuery()
                 .eq(OrderItem::getOrderId, order.getId()));
         int totalItems = items.stream().mapToInt(OrderItem::getQuantity).sum();
@@ -217,7 +195,7 @@ public class PayService {
         task.setOrderNo(order.getOrderNo());
         task.setShopId(order.getShopId());
         task.setWarehouseCode("default");
-        task.setStatus(0); // 待出库
+        task.setStatus(0);
         task.setTotalItems(totalItems);
         outboundTaskMapper.insert(task);
 
@@ -240,8 +218,6 @@ public class PayService {
     }
 
     private String generateTransactionNo() {
-        // 沙箱模式：生成唯一交易号
         return "TX" + System.currentTimeMillis() + IdUtil.fastSimpleUUID().substring(0, 8);
     }
 }
-

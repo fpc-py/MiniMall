@@ -5,6 +5,9 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 
+/**
+ * 库存 Lua 脚本配置。
+ */
 @Configuration
 public class StockLuaConfig {
 

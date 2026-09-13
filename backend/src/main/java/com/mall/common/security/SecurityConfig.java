@@ -38,8 +38,7 @@ public class SecurityConfig {
     };
 
     /**
-     * 游客可访问的商品浏览接口（精确白名单，不用 /api/product/** 通配）。
-     * 后续商家端/平台端的只读接口请走 /api/shop/**、/api/admin/** 前缀，默认需要登录。
+     * 游客可访问的商品浏览接口。
      */
     private static final String[] PUBLIC_GET_URLS = {
             "/api/product/categories/tree",
@@ -67,6 +66,10 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers(PUBLIC_URLS).permitAll()
                 .requestMatchers(HttpMethod.GET, PUBLIC_GET_URLS).permitAll()
+                // 商家端接口需要登录（由 @RequirePermission 进一步控制权限）
+                .requestMatchers("/api/shop/**").authenticated()
+                // 平台端接口需要登录（由 @RequirePermission 进一步控制权限）
+                .requestMatchers("/api/admin/**").authenticated()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)

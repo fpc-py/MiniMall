@@ -16,23 +16,26 @@ import java.util.List;
 /**
  * 超时关单定时任务。
  * <p>
- * 每 5 分钟扫描一次：待付款且超过 30 分钟未支付的订单。
- * 释放锁库存 + 取消订单。
+ * 每 5 分钟扫描一次：待付款(10)且超过 30 分钟未支付的订单。
+ * 释放锁库存 + 取消订单(05)。
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class OrderTimeoutJob {
 
-    private static final int ORDER_PENDING_PAY = 0;
+    /** 待付款 */
+    private static final int ORDER_PENDING_PAY = 10;
+    /** 已取消 */
     private static final int ORDER_CANCELLED = 5;
+    /** 超时时间（分钟） */
     private static final int TIMEOUT_MINUTES = 30;
 
     private final OrderMapper orderMapper;
     private final OrderService orderService;
     private final StockService stockService;
 
-    @Scheduled(fixedDelay = 300_000) // 5 分钟
+    @Scheduled(fixedDelay = 300_000)
     public void cancelTimeoutOrders() {
         LocalDateTime threshold = LocalDateTime.now().minusMinutes(TIMEOUT_MINUTES);
 
@@ -57,17 +60,14 @@ public class OrderTimeoutJob {
     }
 
     private void cancelOrder(Order order) {
-        // 释放锁库存（Redis + DB）
         stockService.releaseByOrder(order.getId());
 
-        // 更新订单状态
         int fromStatus = order.getOrderStatus() == null ? -1 : order.getOrderStatus();
         order.setOrderStatus(ORDER_CANCELLED);
         order.setCancelTime(LocalDateTime.now());
         order.setCancelReason("超时未支付自动关闭");
         orderMapper.updateById(order);
 
-        // 记录状态日志
         orderService.logStatus(order, fromStatus, ORDER_CANCELLED, 0, null, "超时自动关单");
 
         log.info("超时关单成功: orderNo={}", order.getOrderNo());
