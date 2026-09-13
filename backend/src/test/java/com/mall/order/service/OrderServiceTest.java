@@ -40,9 +40,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 /**
@@ -332,5 +334,236 @@ class OrderServiceTest {
         assertThat(vo.getPayAmount()).isEqualByComparingTo("59.97");
         assertThat(vo.getItems().get(0).getSubtotal()).isEqualByComparingTo("59.97");
     }
-}
 
+    @Test
+    @DisplayName("confirm: 直接购买试算金额正确")
+    void confirmDirectBuyCalculatesCorrectly() {
+        Long userId = 1L;
+        Sku s = sku(10L, new BigDecimal("2999.00"));
+        when(skuMapper.selectById(10L)).thenReturn(s);
+        when(skuMapper.selectBatchIds(any())).thenReturn(List.of(s));
+        when(spuMapper.selectById(anyLong())).thenReturn(spu(1L));
+        when(addressMapper.selectById(1L)).thenReturn(address(1L, userId));
+        when(stockService.getAvailableStock(10L)).thenReturn(50);
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+        OrderConfirmVO vo = orderService.confirm(userId, 1L, 10L, 2, false, null);
+        assertThat(vo.getTotalAmount()).isEqualByComparingTo("5998.00");
+        assertThat(vo.getPayAmount()).isEqualByComparingTo("5998.00");
+        assertThat(vo.getTotalQuantity()).isEqualTo(2);
+        assertThat(vo.getItems()).hasSize(1);
+        assertThat(vo.getConfirmToken()).isNotBlank();
+    }
+
+    @Test
+    @DisplayName("submit: 多 SKU 下单锁库存 + 建订单项")
+    void submitMultipleSkusCreatesOrder() {
+        Long userId = 1L;
+        List<CartItemVO> cartItems = List.of(cartItem(10L, 2), cartItem(11L, 1));
+        List<Sku> skus = List.of(sku(10L, new BigDecimal("5999.00")), sku(11L, new BigDecimal("99.00")));
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+        when(valueOps.get(anyString())).thenReturn("token");
+        when(cartService.getSelectedItems(userId)).thenReturn(cartItems);
+        when(skuMapper.selectBatchIds(any())).thenReturn(skus);
+        when(spuMapper.selectById(1L)).thenReturn(spu(1L));
+        when(addressMapper.selectById(1L)).thenReturn(address(1L, userId));
+        when(stockService.preoccupyRedis(10L, 2)).thenReturn(true);
+        when(stockService.preoccupyRedis(11L, 1)).thenReturn(true);
+        when(stockService.preoccupyDB(10L, 2)).thenReturn(true);
+        when(stockService.preoccupyDB(11L, 1)).thenReturn(true);
+        OrderDetailVO vo = orderService.submit(userId, 1L, null, null, true, null, "token");
+        assertThat(vo.getOrderNo()).isNotBlank();
+        assertThat(vo.getPayAmount()).isEqualByComparingTo("12097.00");
+        assertThat(vo.getItems()).hasSize(2);
+        verify(stockService).preoccupyRedis(10L, 2);
+        verify(stockService).preoccupyRedis(11L, 1);
+        verify(stockService).preoccupyDB(10L, 2);
+        verify(stockService).preoccupyDB(11L, 1);
+        verify(orderItemMapper, times(2)).insert(any(OrderItem.class));
+        verify(stockService, times(2)).createStockLock(anyLong(), any(), anyString(), anyInt());
+        verify(cartService).removeItems(eq(userId), any());
+    }
+
+    @Test
+    @DisplayName("cancel: 正常取消订单释放库存")
+    void cancelReleasesStock() {
+        Long userId = 1L;
+        Order order = new Order();
+        order.setId(1L); order.setMemberId(userId);
+        order.setOrderStatus(OrderService.STATUS_PENDING_PAY);
+        order.setOrderNo("NO001");
+        when(orderMapper.selectById(1L)).thenReturn(order);
+        orderService.cancel(userId, 1L, "不想要了");
+        ArgumentCaptor<Order> captor = ArgumentCaptor.forClass(Order.class);
+        verify(orderMapper).updateById(captor.capture());
+        assertThat(captor.getValue().getOrderStatus()).isEqualTo(OrderService.STATUS_CANCELLED);
+        assertThat(captor.getValue().getCancelReason()).isEqualTo("不想要了");
+        verify(stockService).releaseByOrder(1L);
+        verify(orderStatusLogMapper).insert(any(OrderStatusLog.class));
+    }
+
+    @Test
+    @DisplayName("cancel: 越权取消他人订单抛 20001")
+    void cancelThrowsWhenNotOwner() {
+        Order order = new Order();
+        order.setId(1L); order.setMemberId(999L);
+        order.setOrderStatus(OrderService.STATUS_PENDING_PAY);
+        when(orderMapper.selectById(1L)).thenReturn(order);
+        assertThatThrownBy(() -> orderService.cancel(1L, 1L, "test"))
+                .isInstanceOf(MallException.class)
+                .extracting(e -> ((MallException) e).getCode())
+                .isEqualTo(ErrorCode.Auth.FORBIDDEN.getCode());
+        verify(stockService, never()).releaseByOrder(anyLong());
+    }
+
+    @Test
+    @DisplayName("cancel: 非待支付订单取消抛 30004")
+    void cancelThrowsWhenStatusInvalid() {
+        Order order = new Order();
+        order.setId(1L); order.setMemberId(1L);
+        order.setOrderStatus(OrderService.STATUS_PENDING_SHIP);
+        when(orderMapper.selectById(1L)).thenReturn(order);
+        assertThatThrownBy(() -> orderService.cancel(1L, 1L, "test"))
+                .isInstanceOf(MallException.class)
+                .extracting(e -> ((MallException) e).getCode())
+                .isEqualTo(ErrorCode.Biz.ORDER_STATUS_INVALID.getCode());
+    }
+
+    @Test
+    @DisplayName("receive: 正常确认收货")
+    void receiveSuccess() {
+        Long userId = 1L;
+        Order order = new Order();
+        order.setId(1L); order.setMemberId(userId);
+        order.setOrderStatus(OrderService.STATUS_PENDING_RECEIVE);
+        order.setOrderNo("NO001");
+        when(orderMapper.selectById(1L)).thenReturn(order);
+        orderService.receive(userId, 1L);
+        ArgumentCaptor<Order> captor = ArgumentCaptor.forClass(Order.class);
+        verify(orderMapper).updateById(captor.capture());
+        assertThat(captor.getValue().getOrderStatus()).isEqualTo(OrderService.STATUS_FINISHED);
+        assertThat(captor.getValue().getReceiveTime()).isNotNull();
+        assertThat(captor.getValue().getFinishTime()).isNotNull();
+        verify(orderStatusLogMapper).insert(any(OrderStatusLog.class));
+    }
+
+    @Test
+    @DisplayName("receive: 越权确认收货抛 20001")
+    void receiveThrowsWhenNotOwner() {
+        Order order = new Order();
+        order.setId(1L); order.setMemberId(999L);
+        order.setOrderStatus(OrderService.STATUS_PENDING_RECEIVE);
+        when(orderMapper.selectById(1L)).thenReturn(order);
+        assertThatThrownBy(() -> orderService.receive(1L, 1L))
+                .isInstanceOf(MallException.class)
+                .extracting(e -> ((MallException) e).getCode())
+                .isEqualTo(ErrorCode.Auth.FORBIDDEN.getCode());
+    }
+
+    @Test
+    @DisplayName("receive: 非待收货状态确认抛 30004")
+    void receiveThrowsWhenStatusInvalid() {
+        Order order = new Order();
+        order.setId(1L); order.setMemberId(1L);
+        order.setOrderStatus(OrderService.STATUS_PENDING_PAY);
+        when(orderMapper.selectById(1L)).thenReturn(order);
+        assertThatThrownBy(() -> orderService.receive(1L, 1L))
+                .isInstanceOf(MallException.class)
+                .extracting(e -> ((MallException) e).getCode())
+                .isEqualTo(ErrorCode.Biz.ORDER_STATUS_INVALID.getCode());
+    }
+
+    @Test
+    @DisplayName("ship: 商家正常发货")
+    void shipSuccess() {
+        Long shopId = 100L;
+        Order order = new Order();
+        order.setId(1L); order.setShopId(shopId);
+        order.setOrderStatus(OrderService.STATUS_PENDING_SHIP);
+        order.setOrderNo("NO001");
+        when(orderMapper.selectById(1L)).thenReturn(order);
+        orderService.ship(shopId, 1L, "SF", "SF123456");
+        ArgumentCaptor<Order> captor = ArgumentCaptor.forClass(Order.class);
+        verify(orderMapper).updateById(captor.capture());
+        assertThat(captor.getValue().getOrderStatus()).isEqualTo(OrderService.STATUS_PENDING_RECEIVE);
+        assertThat(captor.getValue().getDeliveryCompany()).isEqualTo("SF");
+        assertThat(captor.getValue().getDeliveryNo()).isEqualTo("SF123456");
+        assertThat(captor.getValue().getDeliveryTime()).isNotNull();
+        verify(stockService).updateOutboundTaskShipped(1L);
+        verify(orderStatusLogMapper).insert(any(OrderStatusLog.class));
+    }
+
+    @Test
+    @DisplayName("ship: 越权发货抛 20001")
+    void shipThrowsWhenNotShopOwner() {
+        Order order = new Order();
+        order.setId(1L); order.setShopId(999L);
+        order.setOrderStatus(OrderService.STATUS_PENDING_SHIP);
+        when(orderMapper.selectById(1L)).thenReturn(order);
+        assertThatThrownBy(() -> orderService.ship(100L, 1L, "SF", "NO"))
+                .isInstanceOf(MallException.class)
+                .extracting(e -> ((MallException) e).getCode())
+                .isEqualTo(ErrorCode.Auth.FORBIDDEN.getCode());
+    }
+
+    @Test
+    @DisplayName("shopDetail: 商家查看订单详情")
+    void shopDetailSuccess() {
+        Long shopId = 100L;
+        Order order = new Order();
+        order.setId(1L); order.setShopId(shopId); order.setMemberId(1L);
+        order.setOrderNo("NO001"); order.setOrderStatus(OrderService.STATUS_PENDING_PAY);
+        order.setPayStatus(0); order.setTotalAmount(new BigDecimal("99.00"));
+        order.setPayAmount(new BigDecimal("99.00")); order.setReceiverName("张三");
+        order.setReceiverProvince("广东"); order.setReceiverCity("深圳");
+        order.setReceiverDistrict("南山"); order.setReceiverAddress("科技园");
+        when(orderMapper.selectById(1L)).thenReturn(order);
+        when(orderItemMapper.selectList(any())).thenReturn(List.of());
+        OrderDetailVO vo = orderService.shopDetail(shopId, 1L);
+        assertThat(vo.getOrderNo()).isEqualTo("NO001");
+        assertThat(vo.getReceiverAddress()).contains("广东深圳南山科技园");
+    }
+
+    @Test
+    @DisplayName("金额计算精度：大量商品 BigDecimal 累加无误差")
+    void amountCalculationLargeQuantity() {
+        Long userId = 1L;
+        List<CartItemVO> items = new java.util.ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            CartItemVO item = cartItem(10L + i, 1);
+            item.setPrice(new BigDecimal("0.99"));
+            items.add(item);
+        }
+        List<Sku> skus = new java.util.ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            skus.add(sku(10L + i, new BigDecimal("0.99")));
+        }
+        when(cartService.getSelectedItems(userId)).thenReturn(items);
+        when(skuMapper.selectBatchIds(any())).thenReturn(skus);
+        when(spuMapper.selectById(anyLong())).thenReturn(spu(1L));
+        when(addressMapper.selectById(1L)).thenReturn(address(1L, userId));
+        when(stockService.getAvailableStock(anyLong())).thenReturn(100);
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+        OrderConfirmVO vo = orderService.confirm(userId, 1L, null, null, true, null);
+        assertThat(vo.getTotalAmount()).isEqualByComparingTo("9.90");
+        assertThat(vo.getPayAmount()).isEqualByComparingTo("9.90");
+        assertThat(vo.getTotalQuantity()).isEqualTo(10);
+    }
+
+    @Test
+    @DisplayName("金额计算精度：0.01 * 7 = 0.07 无误差")
+    void amountCalculationPrecision() {
+        Long userId = 1L;
+        List<CartItemVO> items = List.of(cartItem(10L, 7));
+        List<Sku> skus = List.of(sku(10L, new BigDecimal("0.01")));
+        when(cartService.getSelectedItems(userId)).thenReturn(items);
+        when(skuMapper.selectBatchIds(any())).thenReturn(skus);
+        when(spuMapper.selectById(anyLong())).thenReturn(spu(1L));
+        when(addressMapper.selectById(1L)).thenReturn(address(1L, userId));
+        when(stockService.getAvailableStock(anyLong())).thenReturn(100);
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+        OrderConfirmVO vo = orderService.confirm(userId, 1L, null, null, true, null);
+        assertThat(vo.getTotalAmount()).isEqualByComparingTo("0.07");
+        assertThat(vo.getItems().get(0).getSubtotal()).isEqualByComparingTo("0.07");
+    }
+
+}

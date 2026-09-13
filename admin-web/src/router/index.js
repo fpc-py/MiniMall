@@ -16,6 +16,26 @@ const routes = [
         name: 'Dashboard',
         component: () => import('@/views/Dashboard.vue'),
       },
+      {
+        path: 'category',
+        name: 'Category',
+        component: () => import('@/views/Category.vue'),
+      },
+      {
+        path: 'product-spu',
+        name: 'ProductSpu',
+        component: () => import('@/views/ProductSpu.vue'),
+      },
+      {
+        path: 'orders',
+        name: 'OrderManage',
+        component: () => import('@/views/OrderManage.vue'),
+      },
+      {
+        path: 'merchant-audit',
+        name: 'MerchantAudit',
+        component: () => import('@/views/MerchantAudit.vue'),
+      },
     ],
   },
 ]

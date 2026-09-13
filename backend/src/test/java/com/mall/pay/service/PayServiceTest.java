@@ -38,6 +38,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -342,5 +343,79 @@ class PayServiceTest {
         verify(stockService, never()).deductFrozen(anyLong(), any(Integer.class));
         verify(outboundTaskMapper, never()).insert(any(OutboundTask.class));
     }
-}
 
+    @Test
+    @DisplayName("发起支付：交易号冲突自动重试")
+    void createRetriesOnDuplicateKey() {
+        Order order = order(1L, 1L, PayService.ORDER_PENDING_PAY, new BigDecimal("5999.00"));
+        when(orderService.findById(1L)).thenReturn(order);
+        when(paymentMapper.insert(any(Payment.class)))
+                .thenThrow(new org.springframework.dao.DuplicateKeyException("Duplicate"))
+                .thenReturn(0);
+        PayChannel.PayResult result = new PayChannel.PayResult("TX_RETRY", "http://sandbox/pay", true, "OK");
+        when(payChannel.pay(anyString(), any(BigDecimal.class), eq(2))).thenReturn(result);
+        PayCreateRequest req = new PayCreateRequest();
+        req.setOrderId(1L); req.setPayMethod(2);
+        PayCreateVO vo = payService.create(1L, req);
+        assertThat(vo.getSuccess()).isTrue();
+        verify(paymentMapper, times(2)).insert(any(Payment.class));
+    }
+
+    @Test
+    @DisplayName("回调：金额校验 BigDecimal 精度无误")
+    void callbackAmountPrecision() {
+        String txNo = "TX_PREC";
+        Payment payment = payment(10L, 1L, txNo, PayService.PAY_PENDING, new BigDecimal("0.07"));
+        Order order = order(1L, 1L, PayService.ORDER_PENDING_PAY, new BigDecimal("0.07"));
+        StockLock lock = new StockLock();
+        lock.setId(1L); lock.setSkuId(100L); lock.setOrderId(1L); lock.setQuantity(1); lock.setStatus(0);
+        OrderItem item = new OrderItem();
+        item.setOrderId(1L); item.setQuantity(1);
+        when(payChannel.verifyCallback(anyString())).thenReturn(true);
+        when(paymentMapper.selectOne(any())).thenReturn(payment);
+        when(orderService.findByOrderNo("NO1")).thenReturn(order);
+        when(stockLockMapper.selectList(any())).thenReturn(List.of(lock));
+        when(orderItemMapper.selectList(any())).thenReturn(List.of(item));
+        PayCallbackRequest req = new PayCallbackRequest();
+        req.setTransactionNo(txNo); req.setStatus(1);
+        req.setAmount(new BigDecimal("0.07"));
+        req.setCallbackContent("{}");
+        boolean result = payService.callback(req);
+        assertThat(result).isTrue();
+        ArgumentCaptor<com.mall.pay.entity.Payment> payCap = ArgumentCaptor.forClass(com.mall.pay.entity.Payment.class);
+        verify(paymentMapper).updateById(payCap.capture());
+        assertThat(payCap.getValue().getStatus()).isEqualTo(PayService.PAY_SUCCESS);
+        ArgumentCaptor<com.mall.order.entity.Order> ordCap = ArgumentCaptor.forClass(com.mall.order.entity.Order.class);
+        verify(orderService).updateOrder(ordCap.capture());
+        assertThat(ordCap.getValue().getOrderStatus()).isEqualTo(PayService.ORDER_PENDING_SHIP);
+    }
+
+    @Test
+    @DisplayName("回调：多库存锁全部扣减并标记已出库")
+    void callbackDeductsAllStockLocks() {
+        String txNo = "TX_MULTI";
+        Payment payment = payment(10L, 1L, txNo, PayService.PAY_PENDING, new BigDecimal("99.00"));
+        Order order = order(1L, 1L, PayService.ORDER_PENDING_PAY, new BigDecimal("99.00"));
+        StockLock lock1 = new StockLock();
+        lock1.setId(1L); lock1.setSkuId(100L); lock1.setOrderId(1L); lock1.setQuantity(2); lock1.setStatus(0);
+        StockLock lock2 = new StockLock();
+        lock2.setId(2L); lock2.setSkuId(101L); lock2.setOrderId(1L); lock2.setQuantity(1); lock2.setStatus(0);
+        OrderItem item = new OrderItem();
+        item.setOrderId(1L); item.setQuantity(3);
+        when(payChannel.verifyCallback(anyString())).thenReturn(true);
+        when(paymentMapper.selectOne(any())).thenReturn(payment);
+        when(orderService.findByOrderNo("NO1")).thenReturn(order);
+        when(stockLockMapper.selectList(any())).thenReturn(List.of(lock1, lock2));
+        when(orderItemMapper.selectList(any())).thenReturn(List.of(item));
+        PayCallbackRequest req = new PayCallbackRequest();
+        req.setTransactionNo(txNo); req.setStatus(1); req.setCallbackContent("{}");
+        boolean result = payService.callback(req);
+        assertThat(result).isTrue();
+        verify(stockService).deductFrozen(100L, 2);
+        verify(stockService).deductFrozen(101L, 1);
+        ArgumentCaptor<StockLock> lockCap = ArgumentCaptor.forClass(StockLock.class);
+        verify(stockLockMapper, times(2)).updateById(lockCap.capture());
+        assertThat(lockCap.getAllValues()).allMatch(l -> l.getStatus() == 1);
+    }
+
+}

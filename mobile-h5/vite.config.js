@@ -2,7 +2,7 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
-import { VantResolver } from 'vant-auto-import-resolver'
+import { VantResolver } from 'unplugin-vue-components/resolvers'
 import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
@@ -23,8 +23,8 @@ export default defineConfig({
   server: {
     port: 3002,
     proxy: {
-      "/api": {
-        target: "http://localhost:8080",
+      '/api': {
+        target: 'http://localhost:8080',
         changeOrigin: true,
       },
     },
