@@ -62,7 +62,10 @@ public interface ErrorCode {
         ADDRESS_NOT_FOUND(30018, "收货地址不存在"),
         SHOP_APPLY_EXISTS(30019, "已存在待审核或已通过的入驻申请"),
         SHOP_APPLY_HANDLED(30020, "该入驻申请已处理，不能重复审核"),
-        SHOP_USERNAME_EXISTS(30021, "商家账号已存在");
+        SHOP_USERNAME_EXISTS(30021, "商家账号已存在"),
+        FILE_UPLOAD_FAILED(30022, "文件上传失败"),
+        FILE_TYPE_NOT_ALLOWED(30023, "仅支持 jpg/jpeg/png/gif/webp/bmp 图片"),
+        FILE_TOO_LARGE(30024, "图片大小超出限制");
 
         private final int code;
         private final String msg;

@@ -19,6 +19,12 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
 
+  # 文件上传大小限制（与 mall.minio.max-size-bytes 保持一致）
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 20MB
+
 server:
   port: 8080
 
@@ -64,3 +70,14 @@ mall:
     send-interval-seconds: 60
     # 同一验证码最大校验失败次数，超过即作废
     max-verify-fails: 5
+  # 对象存储（图片上传）
+  minio:
+    endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+    access-key: ${MINIO_ACCESS_KEY:admin}
+    secret-key: ${MINIO_SECRET_KEY:minioadmin}
+    bucket: ${MINIO_BUCKET:mall}
+    # 对外访问前缀，为空时使用 endpoint
+    public-url: ${MINIO_PUBLIC_URL:}
+    # 单文件大小上限（字节），默认 5MB
+    max-size-bytes: 5242880
+
