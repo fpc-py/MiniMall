@@ -58,7 +58,8 @@ public interface ErrorCode {
         SKU_NOT_FOUND(30014, "商品规格不存在"),
         SHOP_NOT_FOUND(30015, "店铺不存在"),
         SHOP_NOT_OPEN(30016, "店铺未启用"),
-        AUDIT_NOT_FOUND(30017, "审核申请不存在");
+        AUDIT_NOT_FOUND(30017, "审核申请不存在"),
+        ADDRESS_NOT_FOUND(30018, "收货地址不存在");
 
         private final int code;
         private final String msg;
