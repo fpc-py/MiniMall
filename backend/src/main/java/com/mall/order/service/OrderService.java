@@ -11,6 +11,7 @@ import com.mall.common.ErrorCode;
 import com.mall.common.MallException;
 import com.mall.common.PageQuery;
 import com.mall.common.PageResult;
+import com.mall.marketing.service.CouponService;
 import com.mall.order.entity.Order;
 import com.mall.order.entity.OrderItem;
 import com.mall.order.entity.OrderStatusLog;
@@ -89,6 +90,7 @@ public class OrderService {
     private final StockService stockService;
     private final CartService cartService;
     private final StringRedisTemplate redisTemplate;
+    private final CouponService couponService;
 
     public OrderService(OrderMapper orderMapper,
                         OrderItemMapper orderItemMapper,
@@ -98,7 +100,8 @@ public class OrderService {
                         AddressMapper addressMapper,
                         StockService stockService,
                         CartService cartService,
-                        StringRedisTemplate redisTemplate) {
+                        StringRedisTemplate redisTemplate,
+                        CouponService couponService) {
         this.orderMapper = orderMapper;
         this.orderItemMapper = orderItemMapper;
         this.orderStatusLogMapper = orderStatusLogMapper;
@@ -108,12 +111,18 @@ public class OrderService {
         this.stockService = stockService;
         this.cartService = cartService;
         this.redisTemplate = redisTemplate;
+        this.couponService = couponService;
     }
 
     // ==================== confirm 试算 ====================
 
     public OrderConfirmVO confirm(Long userId, Long addressId, Long skuId, Integer quantity,
                                    boolean fromCart, String remark) {
+        return confirm(userId, addressId, skuId, quantity, fromCart, remark, null);
+    }
+
+    public OrderConfirmVO confirm(Long userId, Long addressId, Long skuId, Integer quantity,
+                                   boolean fromCart, String remark, Long couponMemberId) {
         List<CartItemVO> cartItems;
         if (fromCart) {
             cartItems = cartService.getSelectedItems(userId);
@@ -155,6 +164,9 @@ public class OrderService {
 
         BigDecimal freightAmount = BigDecimal.ZERO;
         BigDecimal discountAmount = BigDecimal.ZERO;
+        if (couponMemberId != null) {
+            discountAmount = couponService.calculateDiscount(userId, couponMemberId, totalAmount, resolveShopId(skus));
+        }
         BigDecimal payAmount = totalAmount.add(freightAmount).subtract(discountAmount);
 
         OrderConfirmVO vo = new OrderConfirmVO();
@@ -183,9 +195,14 @@ public class OrderService {
 
     // ==================== submit 下单 ====================
 
-    @Transactional(rollbackFor = Exception.class)
     public OrderDetailVO submit(Long userId, Long addressId, Long skuId, Integer quantity,
                                  boolean fromCart, String remark, String confirmToken) {
+        return submit(userId, addressId, skuId, quantity, fromCart, remark, confirmToken, null);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public OrderDetailVO submit(Long userId, Long addressId, Long skuId, Integer quantity,
+                                 boolean fromCart, String remark, String confirmToken, Long couponMemberId) {
         // 校验 confirmToken
         String tokenKey = CONFIRM_TOKEN_PREFIX + confirmToken;
         String tokenUserId = redisTemplate.opsForValue().get(tokenKey);
@@ -220,6 +237,9 @@ public class OrderService {
         }
         BigDecimal freightAmount = BigDecimal.ZERO;
         BigDecimal discountAmount = BigDecimal.ZERO;
+        if (couponMemberId != null) {
+            discountAmount = couponService.calculateDiscount(userId, couponMemberId, totalAmount, resolveShopId(skus));
+        }
         BigDecimal payAmount = totalAmount.add(freightAmount).subtract(discountAmount);
 
         String orderNo = generateOrderNo();
@@ -264,6 +284,7 @@ public class OrderService {
         order.setPayAmount(payAmount);
         order.setFreightAmount(freightAmount);
         order.setDiscountAmount(discountAmount);
+        order.setCouponMemberId(couponMemberId);
         order.setPayStatus(PAY_UNPAID);
         order.setOrderStatus(STATUS_PENDING_PAY);
         order.setReceiverName(address.getReceiverName());
@@ -274,6 +295,11 @@ public class OrderService {
         order.setReceiverAddress(address.getDetail());
         order.setMemberRemark(remark);
         orderMapper.insert(order);
+
+        // 标记优惠券已使用（同事务，失败则整体回滚）
+        if (couponMemberId != null) {
+            couponService.markUsed(userId, couponMemberId, order.getId());
+        }
 
         // 建订单项
         for (int i = 0; i < cartItems.size(); i++) {
@@ -354,6 +380,11 @@ public class OrderService {
         order.setCancelTime(LocalDateTime.now());
         order.setCancelReason(cancelReason);
         orderMapper.updateById(order);
+
+        // 退回优惠券（若下单时使用了优惠券）
+        if (order.getCouponMemberId() != null) {
+            couponService.returnCoupon(order.getId());
+        }
 
         // 状态日志
         logStatus(order, fromStatus, STATUS_CANCELLED, OP_USER, userId,
@@ -518,6 +549,15 @@ public class OrderService {
             }
         }
         return skus;
+    }
+
+    /** 取第一个商品所属店铺，用于优惠券的店铺适用范围校验。 */
+    private Long resolveShopId(List<Sku> skus) {
+        if (skus == null || skus.isEmpty()) {
+            return null;
+        }
+        Spu spu = spuMapper.selectById(skus.get(0).getSpuId());
+        return spu == null ? null : spu.getShopId();
     }
 
     private Address validateAddress(Long userId, Long addressId) {

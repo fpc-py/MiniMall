@@ -41,7 +41,8 @@ public class OrderController {
                                      @Valid @RequestBody OrderConfirmRequest req) {
         boolean fromCart = req.getFromCart() == null || req.getFromCart();
         OrderConfirmVO vo = orderService.confirm(
-                user.userId(), req.getAddressId(), req.getSkuId(), req.getQuantity(), fromCart, req.getRemark());
+                user.userId(), req.getAddressId(), req.getSkuId(), req.getQuantity(), fromCart,
+                req.getRemark(), req.getCouponMemberId());
         return R.ok(vo);
     }
 
@@ -52,7 +53,7 @@ public class OrderController {
         boolean fromCart = req.getFromCart() == null || req.getFromCart();
         OrderDetailVO vo = orderService.submit(
                 user.userId(), req.getAddressId(), req.getSkuId(), req.getQuantity(),
-                fromCart, req.getRemark(), req.getConfirmToken());
+                fromCart, req.getRemark(), req.getConfirmToken(), req.getCouponMemberId());
         return R.ok(vo);
     }
 

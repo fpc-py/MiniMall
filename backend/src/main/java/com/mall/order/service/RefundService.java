@@ -13,6 +13,7 @@ import com.mall.order.entity.Refund;
 import com.mall.order.mapper.OrderItemMapper;
 import com.mall.order.mapper.OrderMapper;
 import com.mall.order.mapper.RefundMapper;
+import com.mall.marketing.service.CouponService;
 import com.mall.order.vo.RefundVO;
 import com.mall.stock.service.StockService;
 import lombok.RequiredArgsConstructor;
@@ -52,6 +53,7 @@ public class RefundService {
     private final OrderMapper orderMapper;
     private final OrderItemMapper orderItemMapper;
     private final StockService stockService;
+    private final CouponService couponService;
 
     /** 买家申请退款：校验归属与订单可退状态，同一订单同时只允许一条处理中的退款单。 */
     @Transactional(rollbackFor = Exception.class)
@@ -171,6 +173,10 @@ public class RefundService {
         if (order != null) {
             order.setPayStatus(PAY_REFUNDED);
             orderMapper.updateById(order);
+            // 退回下单时使用的优惠券
+            if (order.getCouponMemberId() != null) {
+                couponService.returnCoupon(order.getId());
+            }
         }
 
         // 4) 退款单落库

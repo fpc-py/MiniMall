@@ -20,6 +20,9 @@ public class OrderConfirmRequest {
     @Schema(description = "是否从购物车结算")
     private Boolean fromCart = true;
 
+    @Schema(description = "使用的会员优惠券记录ID，可为空")
+    private Long couponMemberId;
+
     @Schema(description = "买家备注")
     private String remark;
 }

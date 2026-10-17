@@ -11,6 +11,7 @@ import com.mall.order.entity.Refund;
 import com.mall.order.mapper.OrderItemMapper;
 import com.mall.order.mapper.OrderMapper;
 import com.mall.order.mapper.RefundMapper;
+import com.mall.marketing.service.CouponService;
 import com.mall.order.vo.RefundVO;
 import com.mall.stock.service.StockService;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
@@ -50,6 +51,8 @@ class RefundServiceTest {
     private OrderItemMapper orderItemMapper;
     @Mock
     private StockService stockService;
+    @Mock
+    private CouponService couponService;
 
     private RefundService refundService;
 
@@ -63,7 +66,7 @@ class RefundServiceTest {
 
     @BeforeEach
     void setUp() {
-        refundService = new RefundService(refundMapper, orderMapper, orderItemMapper, stockService);
+        refundService = new RefundService(refundMapper, orderMapper, orderItemMapper, stockService, couponService);
     }
 
     private Order paidOrder() {

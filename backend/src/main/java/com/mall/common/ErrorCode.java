@@ -69,7 +69,12 @@ public interface ErrorCode {
         REFUND_NOT_FOUND(30025, "退款单不存在"),
         REFUND_ALREADY_APPLIED(30026, "该订单已有处理中的退款申请"),
         REFUND_STATUS_INVALID(30027, "退款单状态不允许该操作"),
-        ORDER_NOT_REFUNDABLE(30028, "该订单当前不可申请退款");
+        ORDER_NOT_REFUNDABLE(30028, "该订单当前不可申请退款"),
+        COUPON_NOT_FOUND(30029, "优惠券不存在"),
+        COUPON_RECEIVE_LIMIT(30030, "已达领取上限或超出个人限领"),
+        COUPON_NOT_USABLE(30031, "优惠券不可用"),
+        COUPON_THRESHOLD_NOT_MET(30032, "未达到优惠券使用门槛"),
+        COUPON_STATUS_INVALID(30033, "优惠券状态不允许该操作");
 
         private final int code;
         private final String msg;

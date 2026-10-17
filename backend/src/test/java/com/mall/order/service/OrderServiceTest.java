@@ -4,6 +4,7 @@ import com.mall.cart.service.CartService;
 import com.mall.cart.vo.CartItemVO;
 import com.mall.common.ErrorCode;
 import com.mall.common.MallException;
+import com.mall.marketing.service.CouponService;
 import com.mall.order.entity.Order;
 import com.mall.order.entity.OrderItem;
 import com.mall.order.entity.OrderStatusLog;
@@ -64,13 +65,14 @@ class OrderServiceTest {
     @Mock private CartService cartService;
     @Mock private StringRedisTemplate redisTemplate;
     @Mock private ValueOperations<String, String> valueOps;
+    @Mock private CouponService couponService;
 
     private OrderService orderService;
 
     @BeforeEach
     void setUp() {
         orderService = new OrderService(orderMapper, orderItemMapper, orderStatusLogMapper,
-                skuMapper, spuMapper, addressMapper, stockService, cartService, redisTemplate);
+                skuMapper, spuMapper, addressMapper, stockService, cartService, redisTemplate, couponService);
     }
 
     private Sku sku(long id, BigDecimal price) {

@@ -32,6 +32,9 @@ public class Order extends BaseEntity {
 
     private BigDecimal discountAmount;
 
+    /** 使用的会员优惠券记录ID（取消/退款时退回） */
+    private Long couponMemberId;
+
     /** 1 余额 2 支付宝 3 微信 */
     private Integer payMethod;
 
