@@ -189,6 +189,22 @@ public class StockService {
     }
 
     /**
+     * 退款/售后回补库存：商品退回后 total_stock 与 available_stock 同时回加（Redis 同步）。
+     */
+    public void returnStock(Long skuId, int quantity) {
+        if (skuId == null || quantity <= 0) {
+            return;
+        }
+        LambdaUpdateWrapper<Stock> wrapper = Wrappers.<Stock>lambdaUpdate()
+                .eq(Stock::getSkuId, skuId)
+                .eq(Stock::getWarehouseCode, "default")
+                .setSql("total_stock = total_stock + " + quantity)
+                .setSql("available_stock = available_stock + " + quantity);
+        stockMapper.update(null, wrapper);
+        releaseRedis(skuId, quantity);
+    }
+
+    /**
      * 创建库存锁定记录。
      */
     public StockLock createStockLock(Long skuId, Long orderId, String orderNo, int quantity) {

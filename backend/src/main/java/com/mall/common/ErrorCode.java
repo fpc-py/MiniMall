@@ -65,7 +65,11 @@ public interface ErrorCode {
         SHOP_USERNAME_EXISTS(30021, "商家账号已存在"),
         FILE_UPLOAD_FAILED(30022, "文件上传失败"),
         FILE_TYPE_NOT_ALLOWED(30023, "仅支持 jpg/jpeg/png/gif/webp/bmp 图片"),
-        FILE_TOO_LARGE(30024, "图片大小超出限制");
+        FILE_TOO_LARGE(30024, "图片大小超出限制"),
+        REFUND_NOT_FOUND(30025, "退款单不存在"),
+        REFUND_ALREADY_APPLIED(30026, "该订单已有处理中的退款申请"),
+        REFUND_STATUS_INVALID(30027, "退款单状态不允许该操作"),
+        ORDER_NOT_REFUNDABLE(30028, "该订单当前不可申请退款");
 
         private final int code;
         private final String msg;
