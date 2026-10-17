@@ -57,6 +57,9 @@ class SpuServiceTest {
     @Mock
     private CategoryService categoryService;
 
+    @Mock
+    private com.mall.stock.service.StockService stockService;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private SpuService spuService;
@@ -72,7 +75,7 @@ class SpuServiceTest {
     @BeforeEach
     void setUp() {
         spuService = new SpuService(spuMapper, skuMapper, spuImageMapper, categoryService,
-                new ProductConverterImpl(), objectMapper);
+                new ProductConverterImpl(), objectMapper, stockService);
     }
 
     private Spu spu(long id, String name) {
@@ -355,5 +358,83 @@ class SpuServiceTest {
         rejected.setAuditStatus(2);
         assertThat(spuService.isVisible(rejected)).isFalse();
         assertThat(spuService.isVisible(null)).isFalse();
+    }
+
+    // ==================== 创建商品（G3） ====================
+
+    @Test
+    @DisplayName("创建：shopId 来自入参、默认下架、价格区间取自 SKU，并为每个 SKU 初始化库存")
+    void createWritesShopIdAndInitializesStock() {
+        when(spuMapper.insert(any(Spu.class))).thenAnswer(inv -> {
+            inv.getArgument(0, Spu.class).setId(100L);
+            return 1;
+        });
+        when(skuMapper.insert(any(Sku.class))).thenAnswer(inv -> {
+            Sku s = inv.getArgument(0, Sku.class);
+            s.setId(s.getPrice().longValue());
+            return 1;
+        });
+
+        com.mall.product.dto.SpuSaveRequest req = new com.mall.product.dto.SpuSaveRequest();
+        req.setName("新款手机");
+        req.setCategoryId(10L);
+        req.setImages(List.of("http://img/1.jpg", "http://img/2.jpg"));
+        req.setSkus(List.of(skuItem("8GB", "1999.00", 10), skuItem("12GB", "2999.00", 5)));
+
+        Long spuId = spuService.create(9L, req);
+
+        assertThat(spuId).isEqualTo(100L);
+        org.mockito.ArgumentCaptor<Spu> captor = org.mockito.ArgumentCaptor.forClass(Spu.class);
+        verify(spuMapper).insert(captor.capture());
+        Spu saved = captor.getValue();
+        assertThat(saved.getShopId()).isEqualTo(9L);
+        assertThat(saved.getStatus()).isZero();
+        assertThat(saved.getAuditStatus()).isEqualTo(1);
+        assertThat(saved.getMinPrice()).isEqualByComparingTo("1999.00");
+        assertThat(saved.getMaxPrice()).isEqualByComparingTo("2999.00");
+        assertThat(saved.getMainImage()).isEqualTo("http://img/1.jpg");
+
+        verify(skuMapper, org.mockito.Mockito.times(2)).insert(any(Sku.class));
+        verify(spuImageMapper, org.mockito.Mockito.times(2)).insert(any(com.mall.product.entity.SpuImage.class));
+        verify(stockService).initStock(1999L, 100L, 9L, 10);
+        verify(stockService).initStock(2999L, 100L, 9L, 5);
+    }
+
+    @Test
+    @DisplayName("创建：shopId 为空抛 20001，不落库")
+    void createRejectsMissingShop() {
+        com.mall.product.dto.SpuSaveRequest req = new com.mall.product.dto.SpuSaveRequest();
+        req.setName("新款手机");
+        req.setCategoryId(10L);
+        req.setSkus(List.of(skuItem("8GB", "1999.00", 10)));
+
+        assertThatThrownBy(() -> spuService.create(null, req))
+                .isInstanceOf(MallException.class)
+                .extracting(e -> ((MallException) e).getCode())
+                .isEqualTo(ErrorCode.Auth.FORBIDDEN.getCode());
+
+        verify(spuMapper, org.mockito.Mockito.never()).insert(any(Spu.class));
+    }
+
+    @Test
+    @DisplayName("商家商品列表：按 shopId 过滤")
+    void pageForShopFiltersByShopId() {
+        mockPage(List.of(spu(1L, "我的商品")), 1L);
+
+        PageResult<SpuListItemVO> result = spuService.pageForShop(9L, null, new com.mall.common.PageQuery());
+
+        assertThat(result.getTotal()).isEqualTo(1L);
+        assertThat(result.getList()).hasSize(1);
+        LambdaQueryWrapper<Spu> wrapper = capturedPageWrapper();
+        assertThat(wrapper.getSqlSegment()).contains("shop_id");
+        assertThat(wrapper.getParamNameValuePairs().values()).contains(9L);
+    }
+
+    private com.mall.product.dto.SpuSaveRequest.SkuItem skuItem(String spec, String price, int stock) {
+        com.mall.product.dto.SpuSaveRequest.SkuItem item = new com.mall.product.dto.SpuSaveRequest.SkuItem();
+        item.setSpec(spec);
+        item.setPrice(new java.math.BigDecimal(price));
+        item.setStock(stock);
+        return item;
     }
 }

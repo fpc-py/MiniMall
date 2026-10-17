@@ -2,6 +2,8 @@ package com.mall.product.controller;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.mall.common.ErrorCode;
+import com.mall.common.MallException;
 import com.mall.common.PageQuery;
 import com.mall.common.PageResult;
 import com.mall.common.R;
@@ -16,6 +18,10 @@ import com.mall.product.vo.SkuVO;
 import com.mall.product.vo.SpuDetailVO;
 import com.mall.product.vo.SpuImageVO;
 import com.mall.product.vo.SpuListItemVO;
+import com.mall.stock.service.StockService;
+import com.mall.system.entity.Shop;
+import com.mall.system.mapper.ShopMapper;
+import com.mall.system.service.ShopService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -23,6 +29,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -47,6 +54,8 @@ public class AdminSpuController {
     private final SpuMapper spuMapper;
     private final SkuMapper skuMapper;
     private final SpuImageMapper spuImageMapper;
+    private final ShopMapper shopMapper;
+    private final StockService stockService;
 
     @Data
     public static class SpuCreateRequest {
@@ -153,11 +162,14 @@ public class AdminSpuController {
     @Operation(summary = "创建 SPU")
     @PostMapping
     @RequirePermission("admin:spu:create")
+    @Transactional(rollbackFor = Exception.class)
     public R<Void> create(@Valid @RequestBody SpuCreateRequest req) {
+        Long shopId = selfShopId();
         Spu spu = new Spu();
         spu.setName(req.getName());
         spu.setSubtitle(req.getSubtitle());
         spu.setCategoryId(req.getCategoryId());
+        spu.setShopId(shopId);
         spu.setBrand(req.getBrand());
         spu.setMinPrice(req.getMinPrice());
         spu.setMaxPrice(req.getMaxPrice());
@@ -174,11 +186,28 @@ public class AdminSpuController {
                 sku.setSkuCode(skuReq.getSkuCode());
                 sku.setPrice(skuReq.getPrice());
                 sku.setStock(skuReq.getStock());
+                sku.setFrozenStock(0);
+                sku.setSales(0);
                 sku.setStatus(1);
+                sku.setSort(skuReq.getSort());
                 skuMapper.insert(sku);
+                // 同步初始化 wms_stock，保证下单预占库存有 DB 记录
+                stockService.initStock(sku.getId(), spu.getId(), shopId, skuReq.getStock());
             }
         }
         return R.ok();
+    }
+
+    /** 平台商品归属自营店铺（pms_spu.shop_id NOT NULL）。 */
+    private Long selfShopId() {
+        List<Shop> shops = shopMapper.selectList(Wrappers.<Shop>lambdaQuery()
+                .eq(Shop::getType, 0)
+                .eq(Shop::getStatus, ShopService.STATUS_OPEN)
+                .orderByAsc(Shop::getId));
+        if (shops == null || shops.isEmpty()) {
+            throw new MallException(ErrorCode.Biz.SHOP_NOT_FOUND, "自营店铺未配置");
+        }
+        return shops.get(0).getId();
     }
 
     @Operation(summary = "更新 SPU")

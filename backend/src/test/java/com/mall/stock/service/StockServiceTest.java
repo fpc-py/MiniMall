@@ -199,4 +199,49 @@ class StockServiceTest {
         assertThat(captor.getValue().getStatus()).isEqualTo(2);
         assertThat(captor.getValue().getOutboundTime()).isNotNull();
     }
+
+    @Test @DisplayName("initStock: creates DB record when missing and syncs Redis")
+    void initStockCreatesRecord() {
+        when(stockMapper.selectOne(any())).thenReturn(null);
+        when(redisTemplate.opsForHash()).thenReturn(hashOps);
+
+        stockService.initStock(300L, 30L, 9L, 88);
+
+        ArgumentCaptor<Stock> captor = ArgumentCaptor.forClass(Stock.class);
+        verify(stockMapper).insert(captor.capture());
+        Stock saved = captor.getValue();
+        assertThat(saved.getSkuId()).isEqualTo(300L);
+        assertThat(saved.getSpuId()).isEqualTo(30L);
+        assertThat(saved.getShopId()).isEqualTo(9L);
+        assertThat(saved.getWarehouseCode()).isEqualTo("default");
+        assertThat(saved.getTotalStock()).isEqualTo(88);
+        assertThat(saved.getAvailableStock()).isEqualTo(88);
+        assertThat(saved.getFrozenStock()).isZero();
+
+        verify(hashOps).put("stock:sku:300", "available", "88");
+        verify(hashOps).put("stock:sku:300", "frozen", "0");
+    }
+
+    @Test @DisplayName("initStock: skips insert when record already exists")
+    void initStockSkipsExisting() {
+        when(stockMapper.selectOne(any())).thenReturn(stock(300L, 5, 0));
+        when(redisTemplate.opsForHash()).thenReturn(hashOps);
+
+        stockService.initStock(300L, 30L, 9L, 88);
+
+        verify(stockMapper, never()).insert(any(Stock.class));
+        verify(hashOps).put("stock:sku:300", "available", "88");
+    }
+
+    @Test @DisplayName("initStock: negative quantity clamps to 0")
+    void initStockClampsNegative() {
+        when(stockMapper.selectOne(any())).thenReturn(null);
+        when(redisTemplate.opsForHash()).thenReturn(hashOps);
+
+        stockService.initStock(301L, 30L, 9L, -5);
+
+        ArgumentCaptor<Stock> captor = ArgumentCaptor.forClass(Stock.class);
+        verify(stockMapper).insert(captor.capture());
+        assertThat(captor.getValue().getAvailableStock()).isZero();
+    }
 }

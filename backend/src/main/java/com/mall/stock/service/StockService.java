@@ -64,6 +64,38 @@ public class StockService {
     }
 
     /**
+     * 初始化 SKU 库存：写入 wms_stock 记录（不存在时）并同步 Redis 缓存。
+     * 新商品创建 SKU 时调用，保证下单预占库存有 DB 记录可条件更新。
+     */
+    public void initStock(Long skuId, Long spuId, Long shopId, Integer quantity) {
+        if (skuId == null || spuId == null || shopId == null) {
+            throw new MallException(ErrorCode.Param.MISSING_PARAM, "初始化库存缺少 skuId/spuId/shopId");
+        }
+        int qty = quantity == null || quantity < 0 ? 0 : quantity;
+
+        Stock existing = stockMapper.selectOne(Wrappers.<Stock>lambdaQuery()
+                .eq(Stock::getSkuId, skuId)
+                .eq(Stock::getWarehouseCode, "default"));
+        if (existing == null) {
+            Stock stock = new Stock();
+            stock.setSkuId(skuId);
+            stock.setSpuId(spuId);
+            stock.setShopId(shopId);
+            stock.setWarehouseCode("default");
+            stock.setTotalStock(qty);
+            stock.setAvailableStock(qty);
+            stock.setFrozenStock(0);
+            stock.setSafetyStock(0);
+            stockMapper.insert(stock);
+        }
+
+        // 覆盖 Redis 缓存，使新建 SKU 立即可售
+        String key = stockKey(skuId);
+        redisTemplate.opsForHash().put(key, "available", String.valueOf(qty));
+        redisTemplate.opsForHash().put(key, "frozen", "0");
+    }
+
+    /**
      * 初始化 SKU 的 Redis 库存缓存（从 DB 加载）。
      * 若缓存已存在则跳过，避免覆盖运行期数据。
      */

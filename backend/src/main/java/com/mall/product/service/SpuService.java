@@ -8,10 +8,12 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mall.common.ErrorCode;
 import com.mall.common.MallException;
+import com.mall.common.PageQuery;
 import com.mall.common.PageResult;
 import com.mall.common.util.SqlUtils;
 import com.mall.product.converter.ProductConverter;
 import com.mall.product.dto.SpuQuery;
+import com.mall.product.dto.SpuSaveRequest;
 import com.mall.product.entity.Category;
 import com.mall.product.entity.Sku;
 import com.mall.product.entity.Spu;
@@ -23,11 +25,14 @@ import com.mall.product.vo.SkuVO;
 import com.mall.product.vo.SpuDetailVO;
 import com.mall.product.vo.SpuImageVO;
 import com.mall.product.vo.SpuListItemVO;
+import com.mall.stock.service.StockService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -42,6 +47,8 @@ public class SpuService {
 
     /** 上架 */
     public static final int STATUS_ON_SALE = 1;
+    /** 下架 */
+    public static final int STATUS_OFF_SALE = 0;
     /** 审核通过 */
     public static final int AUDIT_PASSED = 1;
     /** SKU 启用 */
@@ -53,6 +60,99 @@ public class SpuService {
     private final CategoryService categoryService;
     private final ProductConverter converter;
     private final ObjectMapper objectMapper;
+    private final StockService stockService;
+
+    /**
+     * 创建 SPU（含 SKU 与图片），并为每个 SKU 初始化 wms_stock 库存记录。
+     * 商品创建后默认下架（status=0），由商家/平台自行上架。
+     * shopId 由调用方从 Token 解析，杜绝越权挂到他人店铺。
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public Long create(Long shopId, SpuSaveRequest req) {
+        if (shopId == null) {
+            throw new MallException(ErrorCode.Auth.FORBIDDEN, "当前用户无店铺权限");
+        }
+        Spu spu = new Spu();
+        spu.setName(req.getName());
+        spu.setSubtitle(req.getSubtitle());
+        spu.setCategoryId(req.getCategoryId());
+        spu.setShopId(shopId);
+        spu.setBrand(req.getBrand());
+        spu.setUnit(req.getUnit());
+        spu.setDescription(req.getDescription());
+        spu.setMainImage(firstImage(req));
+        spu.setStatus(STATUS_OFF_SALE);
+        spu.setAuditStatus(AUDIT_PASSED);
+        spu.setTotalSales(0);
+        spu.setMinPrice(minPrice(req));
+        spu.setMaxPrice(maxPrice(req));
+        spuMapper.insert(spu);
+
+        saveImages(spu.getId(), req.getImages());
+
+        for (SpuSaveRequest.SkuItem item : req.getSkus()) {
+            Sku sku = new Sku();
+            sku.setSpuId(spu.getId());
+            sku.setSkuCode(item.getSkuCode());
+            sku.setName(item.getSpec());
+            sku.setPrice(item.getPrice());
+            sku.setStock(item.getStock());
+            sku.setFrozenStock(0);
+            sku.setSales(0);
+            sku.setStatus(SKU_ENABLED);
+            sku.setSort(item.getSort());
+            skuMapper.insert(sku);
+            // 同步初始化 DB 库存与 Redis 缓存，保证下单可预占
+            stockService.initStock(sku.getId(), spu.getId(), shopId, item.getStock());
+        }
+        log.info("创建商品: shopId={}, spuId={}, skuCount={}", shopId, spu.getId(), req.getSkus().size());
+        return spu.getId();
+    }
+
+    /** 商家查看自己店铺的 SPU（含下架商品）。 */
+    public PageResult<SpuListItemVO> pageForShop(Long shopId, String keyword, PageQuery pageQuery) {
+        Page<Spu> page = new Page<>(pageQuery.safePageNum(), pageQuery.safePageSize());
+        var wrapper = Wrappers.<Spu>lambdaQuery()
+                .eq(Spu::getShopId, shopId)
+                .like(StringUtils.hasText(keyword), Spu::getName, keyword)
+                .orderByDesc(Spu::getCreateTime)
+                .orderByDesc(Spu::getId);
+        return PageResult.of(spuMapper.selectPage(page, wrapper), converter::toListItem);
+    }
+
+    private void saveImages(Long spuId, List<String> urls) {
+        if (urls == null || urls.isEmpty()) {
+            return;
+        }
+        for (int i = 0; i < urls.size(); i++) {
+            SpuImage img = new SpuImage();
+            img.setSpuId(spuId);
+            img.setUrl(urls.get(i));
+            img.setType(i == 0 ? 1 : 0);
+            img.setSort(i);
+            spuImageMapper.insert(img);
+        }
+    }
+
+    private String firstImage(SpuSaveRequest req) {
+        if (StringUtils.hasText(req.getMainImage())) {
+            return req.getMainImage();
+        }
+        List<String> images = req.getImages();
+        return (images == null || images.isEmpty()) ? null : images.get(0);
+    }
+
+    private BigDecimal minPrice(SpuSaveRequest req) {
+        return req.getSkus().stream().map(SpuSaveRequest.SkuItem::getPrice)
+                .filter(java.util.Objects::nonNull)
+                .min(BigDecimal::compareTo).orElse(null);
+    }
+
+    private BigDecimal maxPrice(SpuSaveRequest req) {
+        return req.getSkus().stream().map(SpuSaveRequest.SkuItem::getPrice)
+                .filter(java.util.Objects::nonNull)
+                .max(BigDecimal::compareTo).orElse(null);
+    }
 
     /**
      * SPU 分页列表：关键字搜索 + 分类筛选（含子分类）+ 排序白名单。
