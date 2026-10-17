@@ -2,8 +2,6 @@ package com.mall.system.controller;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.mall.common.ErrorCode;
-import com.mall.common.MallException;
 import com.mall.common.PageQuery;
 import com.mall.common.PageResult;
 import com.mall.common.R;
@@ -15,7 +13,9 @@ import com.mall.system.entity.Shop;
 import com.mall.system.entity.SysUser;
 import com.mall.system.mapper.ShopMapper;
 import com.mall.system.mapper.SysUserMapper;
+import com.mall.system.service.ShopApplyService;
 import com.mall.system.service.ShopService;
+import com.mall.system.vo.ShopApplyVO;
 import com.mall.system.vo.ShopVO;
 import com.mall.system.vo.SysUserVO;
 import io.swagger.v3.oas.annotations.Operation;
@@ -30,7 +30,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Tag(name = "平台端 - 系统管理")
 @RestController
@@ -40,34 +39,33 @@ public class AdminController {
 
     private final ShopMapper shopMapper;
     private final ShopService shopService;
+    private final ShopApplyService shopApplyService;
     private final SysUserMapper sysUserMapper;
 
     // ==================== 商家审核 ====================
 
-    @Operation(summary = "待审核店铺列表", description = "返回所有待审核的店铺入驻申请")
+    @Operation(summary = "待审核入驻申请列表", description = "返回所有待审核的商家入驻申请，最新在前")
     @GetMapping("/shops/pending")
     @RequirePermission("admin:shop:audit")
-    public R<List<ShopVO>> pendingShops() {
-        List<Shop> shops = shopMapper.selectList(
-                Wrappers.<Shop>lambdaQuery()
-                        .eq(Shop::getStatus, ShopService.STATUS_PENDING_AUDIT)
-                        .orderByAsc(Shop::getCreateTime));
-        List<ShopVO> vos = shops.stream().map(shopService::toVO).collect(Collectors.toList());
-        return R.ok(vos);
+    public R<List<ShopApplyVO>> pendingShops() {
+        return R.ok(shopApplyService.listByStatus(ShopApplyService.APPLY_PENDING));
     }
 
-    @Operation(summary = "审核商家入驻", description = "通过/拒绝商家入驻申请")
+    @Operation(summary = "入驻申请列表（分页）", description = "平台分页查看全部入驻申请，可按状态过滤")
+    @GetMapping("/shops/applies")
+    @RequirePermission("admin:shop:audit")
+    public R<PageResult<ShopApplyVO>> applyList(@Valid PageQuery pageQuery,
+                                                @RequestParam(required = false) Integer status) {
+        return R.ok(shopApplyService.page(status, pageQuery));
+    }
+
+    @Operation(summary = "审核商家入驻", description = "通过时创建店铺并开通商家账号；拒绝时仅回写状态与备注")
     @PostMapping("/shops/audit")
     @RequirePermission("admin:shop:audit")
     public R<Void> auditShop(@CurrentUser LoginUser user,
                              @Valid @RequestBody ShopAuditRequest req) {
-        Shop shop = shopMapper.selectById(req.getApplyId());
-        if (shop == null) {
-            throw new MallException(ErrorCode.Param.INVALID_PARAM, "店铺记录不存在");
-        }
-        shop.setAuditRemark(req.getAuditRemark());
-        shop.setStatus(req.getStatus());
-        shopMapper.updateById(shop);
+        shopApplyService.audit(req.getApplyId(), req.getStatus(), req.getAuditRemark(),
+                req.getUsername(), req.getPassword(), user.userId());
         return R.ok();
     }
 

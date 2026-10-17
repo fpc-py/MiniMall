@@ -59,7 +59,10 @@ public interface ErrorCode {
         SHOP_NOT_FOUND(30015, "店铺不存在"),
         SHOP_NOT_OPEN(30016, "店铺未启用"),
         AUDIT_NOT_FOUND(30017, "审核申请不存在"),
-        ADDRESS_NOT_FOUND(30018, "收货地址不存在");
+        ADDRESS_NOT_FOUND(30018, "收货地址不存在"),
+        SHOP_APPLY_EXISTS(30019, "已存在待审核或已通过的入驻申请"),
+        SHOP_APPLY_HANDLED(30020, "该入驻申请已处理，不能重复审核"),
+        SHOP_USERNAME_EXISTS(30021, "商家账号已存在");
 
         private final int code;
         private final String msg;

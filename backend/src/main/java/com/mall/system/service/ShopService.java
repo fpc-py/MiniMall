@@ -38,15 +38,6 @@ public class ShopService {
         return shop;
     }
 
-    /**
-     * 平台审核商家入驻。
-     * 通过：创建 shop_shop 记录，关联 sys_user 的 shop_id。
-     */
-    public void audit(Long applyId, Integer status, String auditRemark, Long auditorId) {
-        // 审核逻辑实际由 AdminController 实现
-        // 此处提供基础查询方法
-    }
-
     public ShopVO toVO(Shop shop) {
         if (shop == null) return null;
         ShopVO vo = new ShopVO();
