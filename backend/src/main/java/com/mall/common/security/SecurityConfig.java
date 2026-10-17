@@ -71,6 +71,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/auth/sms/**").permitAll()
+                // 第三方支付回调：由渠道签名校验保证安全，不能要求用户 JWT
+                .requestMatchers(HttpMethod.POST, "/api/pay/callback").permitAll()
                 // 商家端接口需要登录（由 @RequirePermission 进一步控制权限）
                 .requestMatchers("/api/shop/**").authenticated()
                 // 平台端接口需要登录（由 @RequirePermission 进一步控制权限）

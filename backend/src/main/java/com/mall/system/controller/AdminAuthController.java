@@ -48,8 +48,9 @@ public class AdminAuthController {
         if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new MallException(ErrorCode.Auth.UNAUTHORIZED, "用户名或密码错误");
         }
-        if (user.getType() != null && user.getType() > 1) {
-            throw new MallException(ErrorCode.Auth.FORBIDDEN, "无权限登录管理后台");
+        // type: 0平台超管 1平台运营 2商家管理员 3商家员工
+        if (user.getType() == null || user.getType() < 0 || user.getType() > 3) {
+            throw new MallException(ErrorCode.Auth.FORBIDDEN, "无权限登录后台");
         }
         String token = jwtUtils.generateToken(user.getId(), user.getUsername(), UserType.SYS, user.getShopId());
         LoginVO vo = new LoginVO();
@@ -59,7 +60,8 @@ public class AdminAuthController {
         vo.setUserId(user.getId());
         vo.setUsername(user.getUsername());
         vo.setRealName(user.getRealName() == null ? user.getUsername() : user.getRealName());
-        vo.setUserType("admin");
+        // 平台用户(type 0/1) -> admin；商家用户(type 2/3) -> shop
+        vo.setUserType(user.getType() <= 1 ? "admin" : "shop");
         return R.ok(vo);
     }
 }
