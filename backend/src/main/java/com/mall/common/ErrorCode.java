@@ -74,7 +74,11 @@ public interface ErrorCode {
         COUPON_RECEIVE_LIMIT(30030, "已达领取上限或超出个人限领"),
         COUPON_NOT_USABLE(30031, "优惠券不可用"),
         COUPON_THRESHOLD_NOT_MET(30032, "未达到优惠券使用门槛"),
-        COUPON_STATUS_INVALID(30033, "优惠券状态不允许该操作");
+        COUPON_STATUS_INVALID(30033, "优惠券状态不允许该操作"),
+        AI_SERVICE_UNAVAILABLE(30034, "智能客服暂时不可用，请稍后再试"),
+        AI_CONVERSATION_NOT_FOUND(30035, "会话不存在"),
+        AI_CONVERSATION_FORBIDDEN(30036, "无权访问该会话"),
+        AI_REQUEST_INVALID(30037, "提问内容不合法");
 
         private final int code;
         private final String msg;

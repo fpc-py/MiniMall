@@ -31,6 +31,7 @@
       <van-cell title="我的优惠券" icon="coupon-o" is-link @click="go('/coupons')" />
       <van-cell title="收货地址" icon="location-o" is-link @click="go('/address')" />
       <van-cell title="退款 / 售后" icon="after-sale" is-link @click="go('/refund/list')" />
+      <van-cell title="在线客服" icon="service-o" is-link @click="go('/customer-service')" />
     </van-cell-group>
 
     <div class="logout-section rv" style="--i: 2">

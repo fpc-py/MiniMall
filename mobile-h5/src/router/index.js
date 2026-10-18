@@ -82,6 +82,12 @@ const routes = [
     component: () => import('@/views/RefundList.vue'),
     meta: { requiresAuth: true },
   },
+  {
+    path: '/customer-service',
+    name: 'CustomerService',
+    component: () => import('@/views/CustomerService.vue'),
+    meta: { requiresAuth: true },
+  },
 ]
 
 const router = createRouter({

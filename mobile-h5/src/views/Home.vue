@@ -118,6 +118,13 @@
       </div>
       <van-empty v-else description="暂无推荐商品" image-size="60" />
     </section>
+
+    <!-- 智能客服悬浮入口 -->
+    <div class="cs-fab" @click="$router.push('/customer-service')">
+      <span class="cs-fab-ring" aria-hidden="true"></span>
+      <van-icon name="service-o" size="22" color="#fff" />
+      <span class="cs-fab-text">客服</span>
+    </div>
   </div>
 </template>
 
@@ -603,5 +610,49 @@ onMounted(() => {
   border-radius: 50%;
   background: var(--cyan);
   box-shadow: 0 0 6px var(--cyan);
+}
+
+/* ---------- 智能客服悬浮入口 ---------- */
+.cs-fab {
+  position: fixed;
+  right: var(--gutter);
+  bottom: calc(74px + env(safe-area-inset-bottom));
+  z-index: 120;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  background-image: linear-gradient(135deg, var(--neon), #ff5ea8 55%, var(--violet));
+  box-shadow: var(--glow-neon);
+  animation: floatY 3.6s var(--ease-out) infinite;
+  transition: transform var(--dur-fast) var(--ease-spring);
+}
+.cs-fab:active {
+  transform: scale(0.9);
+}
+.cs-fab-ring {
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+  background: conic-gradient(from 140deg, var(--neon), var(--cyan), var(--violet), var(--neon));
+  opacity: 0.55;
+  filter: blur(9px);
+  z-index: 0;
+  animation: glowPulse 3.2s var(--ease-out) infinite;
+}
+.cs-fab .van-icon {
+  position: relative;
+  z-index: 1;
+}
+.cs-fab-text {
+  position: relative;
+  z-index: 1;
+  font-size: 10px;
+  color: #fff;
+  letter-spacing: 0.06em;
 }
 </style>
