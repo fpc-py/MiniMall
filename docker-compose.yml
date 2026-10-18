@@ -7,11 +7,14 @@ services:
       MYSQL_DATABASE: mall
       MYSQL_CHARACTER_SET_SERVER: utf8mb4
       MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
+      # 时区必须与后端 JVM(Asia/Shanghai) 一致，否则 DB 生成的 CURRENT_TIMESTAMP 会比应用时间早 8 小时，
+      # 导致超时关单任务把刚下单的订单误判为超时并自动取消
+      TZ: Asia/Shanghai
     ports:
-      - "3306:3306"
+      - "3308:3306"
     volumes:
       - mysql-data:/var/lib/mysql
-    command: --default-authentication-plugin=mysql_native_password
+    command: --default-authentication-plugin=mysql_native_password --default-time-zone=+08:00
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
@@ -71,7 +74,7 @@ services:
       MINIO_SECRET_KEY: minioadmin
       SPRING_PROFILES_ACTIVE: local
     ports:
-      - "8080:8080"
+      - "8088:8080"
     depends_on:
       mysql:
         condition: service_healthy

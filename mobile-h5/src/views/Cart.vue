@@ -198,7 +198,8 @@ onMounted(loadCart)
 
 <style scoped>
 .cart-page {
-  padding-bottom: 74px;
+  /* 需同时让开固定结算栏(64px)与 TabBar(58px) */
+  padding-bottom: 130px;
 }
 
 .cart-list {
@@ -312,7 +313,9 @@ onMounted(loadCart)
 /* ---------- 底部结算栏 ---------- */
 .cart-bottom-bar {
   position: fixed;
-  bottom: 0;
+  /* 抬到 TabBar 之上：.page 的 fadeIn 动画形成了 stacking context，
+     整页（含本栏）会被 TabBar 盖住，故此处按 TabBar 高度上移，避免点击被拦截 */
+  bottom: var(--van-tabbar-height, 58px);
   left: 0;
   right: 0;
   height: 64px;

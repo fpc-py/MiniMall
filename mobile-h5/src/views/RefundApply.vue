@@ -86,7 +86,8 @@ import { applyRefund } from '@/api/refund'
 const route = useRoute()
 const router = useRouter()
 
-const orderId = route.query.orderId ? Number(route.query.orderId) : null
+// 后端 Long 以字符串下发（雪花 ID 超出 JS 安全整数范围），此处必须保持字符串，禁止 Number() 转换
+const orderId = route.query.orderId ? String(route.query.orderId) : null
 
 const loadingOrder = ref(true)
 const order = ref(null)

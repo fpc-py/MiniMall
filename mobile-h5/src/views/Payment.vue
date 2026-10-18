@@ -90,7 +90,8 @@ import { createPay, payCallback } from '@/api/pay'
 const route = useRoute()
 const router = useRouter()
 
-const orderId = route.query.id ? Number(route.query.id) : null
+// 后端 Long 以字符串下发（雪花 ID 超出 JS 安全整数范围），此处必须保持字符串，禁止 Number() 转换
+const orderId = route.query.id ? String(route.query.id) : null
 const order = ref(null)
 
 const selectedMethod = ref(3)
