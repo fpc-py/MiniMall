@@ -4,7 +4,8 @@
 单体 Spring Boot 商城，交付完整交易闭环：注册登录 → 浏览商品 → 加购 → 下单锁库存 → 沙箱支付 → 回调扣库存出库 → 确认收货；含商家端与平台后台。v1.0 不引入微服务组件（Nacos/Gateway/RocketMQ/Seata/K8s 一律不用）。
 
 ## 技术栈（硬性，不要擅自替换）
-- 后端：Java 21、Spring Boot 3.2.x、MyBatis-Plus 3.5.x、Spring Security + JWT(jjwt 0.12)、Flyway、Knife4j 4.x、Hutool、Lombok、MapStruct
+- 后端：Java 21、Spring Boot 3.4.x、MyBatis-Plus 3.5.x、Spring Security + JWT(jjwt 0.12)、Flyway、springdoc-openapi（Swagger UI）、Hutool、Lombok、MapStruct
+- 智能客服：Spring AI 1.0.x（经用户同意突破原 3.2.x 基线，Boot 同步升至 3.4.x；原 Knife4j 与 Boot 3.4 不兼容已移除）
 - 存储：MySQL 8.0、Redis 7、MinIO
 - 移动端：Vue 3 + Vite + Vant 4
 - 管理后台：Vue 3 + Vite + Element Plus + Pinia
@@ -14,13 +15,17 @@
 ```
 mall-v1/
 ├── AGENTS.md
-├── .codex/config.toml
+├── README.md
 ├── docker-compose.yml
+├── nginx-admin.conf / nginx-mobile.conf   # 前端镜像内 Nginx 配置
 ├── backend/                 # Spring Boot 单体，包结构按领域分包
-│   └── src/main/java/com/mall/{common,system,product,cart,order,stock,pay}
-│   └── src/main/resources/db/migration/   # Flyway 版本化 SQL
-├── admin-web/               # 管理后台
-└── mobile-h5/               # 移动端 H5
+│   ├── Dockerfile
+│   └── src/main/java/com/mall/{common,system,product,cart,order,stock,pay,marketing,ai}
+│   └── src/main/resources/db/migration/   # Flyway 版本化 SQL（V1~V8）
+│   └── src/main/resources/db/seed/        # 本地专用演示数据（仅 local profile）
+│   └── src/main/resources/application-local.yml.example  # 本地配置模板（真实 .yml 已 gitignore）
+├── admin-web/               # 管理后台（含 Dockerfile）
+└── mobile-h5/               # 移动端 H5（含 Dockerfile）
 ```
 
 
@@ -38,7 +43,7 @@ mall-v1/
 2. 支付回调必须幂等：第三方交易号加唯一索引，重复回调直接返回成功，不重复扣库存/不重复改状态。
 3. 禁止字符串拼接 SQL；禁止把密钥/真实商户号提交进仓库（放 application-local.yml，已 gitignore）。
 4. 数据库结构变更一律走 Flyway 新迁移脚本（V2__xxx.sql），不准手改已有 SQL。
-5. 不引入本文件技术栈之外的新框架/中间件，除非先向我说明理由并获同意。
+5. 不引入本文件技术栈之外的新框架/中间件，除非先向我说明理由并获同意（Spring AI 为已获同意的一次例外）。
 
 ## 交付要求
 - 每完成一个模块，自行运行：后端 `mvn -q compile`，前端 `npm run build`，编译/构建失败必须修到通过再停。

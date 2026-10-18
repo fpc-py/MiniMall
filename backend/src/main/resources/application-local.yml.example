@@ -1,0 +1,37 @@
+# ============================================
+# 本地开发配置模板
+# 用法：复制为同目录下的 application-local.yml 后按需修改
+#   cp src/main/resources/application-local.yml.example src/main/resources/application-local.yml
+# 该 .yml 文件已被 .gitignore 忽略，不会入库；请勿把真实密钥写在模板里。
+# ============================================
+spring:
+  datasource:
+    username: root
+    password: 123456
+  data:
+    redis:
+      # docker compose 将 Redis 映射到宿主机 6381（6379 常被本机其他服务占用）
+      host: localhost
+      port: 6381
+      database: 0
+  flyway:
+    # 本地额外加载演示数据（classpath:db/seed），生产环境不加载
+    locations: classpath:db/migration,classpath:db/seed
+
+mall:
+  jwt:
+    # 仅本地开发使用，生产必须替换为 256bit 以上随机密钥并通过环境变量注入
+    secret: mall-dev-secret-key-change-in-production-at-least-256-bits
+    expiration: 86400000
+  sms:
+    # 本地联调：发送验证码接口直接回显 code，无需真实短信通道；生产置为 false
+    mock-enabled: true
+    code-ttl-seconds: 60
+    send-interval-seconds: 60
+
+# MinIO（本地开发，docker compose 已启动 minio 服务）
+minio:
+  endpoint: http://localhost:9000
+  access-key: admin
+  secret-key: minioadmin
+  bucket: mall

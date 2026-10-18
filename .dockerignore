@@ -1,0 +1,17 @@
+# 该文件作用于「以仓库根为构建上下文」的构建（admin-web / mobile-h5 镜像）
+.git
+.gitignore
+.idea
+.vscode
+.trae
+.codex
+.cc-switch
+.m2-repo
+.m2-settings.xml
+**/node_modules
+**/dist
+backend/target
+**/*.log
+**/*.iml
+**/*.tmp
+**/*.bak

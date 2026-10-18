@@ -72,7 +72,6 @@ services:
       MINIO_ENDPOINT: http://minio:9000
       MINIO_ACCESS_KEY: admin
       MINIO_SECRET_KEY: minioadmin
-      SPRING_PROFILES_ACTIVE: local
     ports:
       - "8088:8080"
     depends_on:
@@ -86,11 +85,10 @@ services:
       - mall-net
 
   admin-web:
-    image: nginx:alpine
+    build:
+      context: .
+      dockerfile: admin-web/Dockerfile
     container_name: mall-admin-web
-    volumes:
-      - ./admin-web/dist:/usr/share/nginx/html:ro
-      - ./nginx-admin.conf:/etc/nginx/conf.d/default.conf:ro
     ports:
       - "3001:80"
     depends_on:
@@ -99,11 +97,10 @@ services:
       - mall-net
 
   mobile-h5:
-    image: nginx:alpine
+    build:
+      context: .
+      dockerfile: mobile-h5/Dockerfile
     container_name: mall-mobile-h5
-    volumes:
-      - ./mobile-h5/dist:/usr/share/nginx/html:ro
-      - ./nginx-mobile.conf:/etc/nginx/conf.d/default.conf:ro
     ports:
       - "3002:80"
     depends_on:

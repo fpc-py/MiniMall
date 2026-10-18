@@ -6,6 +6,8 @@
 target/
 # Maven 本地仓库缓存（约 94MB 二进制，禁止入库）
 .m2-repo/
+# 本地 Maven settings（内含机器绝对路径，禁止入库）
+.m2-settings.xml
 .mvn/wrapper/maven-wrapper.jar
 hs_err_pid*
 replay_pid*

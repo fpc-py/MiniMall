@@ -281,3 +281,15 @@ location = /api/ai/chat/stream {
 - **Embedding 与 Chat 供应商可能不同**：DeepSeek 无 Embedding 接口，RAG 需另配兼容端点（如 DashScope）；未配则自动走关键词降级，功能不受影响。
 - **越权**：所有涉及订单/退款/会话的工具与接口必须做归属校验。
 - **不做**：向量库持久化与生产级选型（`SimpleVectorStore` 为内存实现，官方标注非生产级，仅满足本期演示/可用）、后台 FAQ 与客服工作台、多模态客服、消息推送与未读计数、跨会话共享上下文。
+
+---
+
+## 9. 实施结果（已落地，与实际代码对齐）
+
+本方案已全部实施完成，最终落地情况与本文档的差异如下（其余按原设计执行）：
+
+1. **依赖回退规则已触发**：Knife4j 4.5.0 在 Boot 3.4 下仍报兼容问题，按 §3.2 回退规则**移除 Knife4j**，改用官方 `springdoc-openapi-starter-webmvc-ui`；API 文档入口由 `/doc.html` 变为 **`/swagger-ui.html`**。最终版本：Spring Boot **3.4.5** + Spring AI **1.0.0** + MyBatis-Plus **3.5.9**。
+2. **交付文件**：`backend` 新增 `com.mall.ai` 包（`AiChatController`、`AiChatService`、`AiChatClientConfig`、`MockChatModel`、`AiFaqService`、5 个 `@Tool` 工具、4 个实体 + Mapper、`AiProperties`）；`V8__ai_customer_service.sql` 建 4 张表 + FAQ 种子；`mobile-h5` 新增 `src/api/ai.js`、`src/views/CustomerService.vue`、路由 `/customer-service`，并在 `Home.vue` / `Profile.vue` 追加入口；`nginx-mobile.conf` 追加 SSE 精确 location。
+3. **接口实际路径**：`POST /api/ai/chat/stream`（SSE）、`GET /api/ai/conversations`、`GET /api/ai/conversations/{conversationId}/messages`、`GET /api/ai/faq/hot`。
+4. **额外修复（方案外发现）**：`JwtAuthenticationFilter` 继承 `OncePerRequestFilter` 时默认不处理 ASYNC 派发，导致 `SseEmitter.complete()` 触发的异步派发阶段 `SecurityContext` 为空、被 Spring Security 6 的 `AuthorizationFilter` 判为 403 而中断连接（前端表现为 `ERR_ABORTED`）。已在 `SecurityConfig` 放行 ASYNC 派发修复。
+5. **验证结果**：`mvn test` 全部 **267** 个用例通过；浏览器实测移动端客服页通过——快捷提问 chips 正常、SSE 逐字回复正常、转人工提示正常、输入框可连续发送。`mall.ai.mock-enabled=true` 下**无需真实 API Key 即可开箱使用**。

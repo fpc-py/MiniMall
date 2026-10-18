@@ -1,0 +1,8 @@
+target
+# 本地私有配置（含密钥），禁止打进镜像
+application-local.yml
+.git
+.gitignore
+.idea
+*.log
+*.iml

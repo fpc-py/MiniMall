@@ -28,4 +28,5 @@ COPY --from=builder /build/target/*.jar app.jar
 
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-jar", "app.jar", "--spring.profiles.active=local"]
+# 连接信息由 docker-compose 通过环境变量注入；本地私有配置不随镜像分发
+ENTRYPOINT ["java", "-jar", "app.jar"]
