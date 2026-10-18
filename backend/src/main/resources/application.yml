@@ -25,20 +25,40 @@ spring:
       max-file-size: 5MB
       max-request-size: 20MB
 
+  # Spring AI：默认关闭全部模型自动装配。
+  # 未配置 api-key 时，spring-ai-starter-model-openai 仍会尝试创建 chat/embedding/image/audio-speech/
+  # audio-transcription/moderation 六个 Bean 并在启动期抛「OpenAI API key must be set」，
+  # 因此必须显式置 none；不再使用时（如仅用 chat）也一并关闭其余，避免无谓 Bean 与启动失败。
+  ai:
+    model:
+      chat: none
+      embedding: none
+      image: none
+      audio:
+        speech: none
+        transcription: none
+      moderation: none
+    openai:
+      api-key: ${MALL_AI_API_KEY:}
+      chat:
+        base-url: ${MALL_AI_BASE_URL:https://api.deepseek.com/v1}
+        options:
+          model: ${MALL_AI_MODEL:deepseek-chat}
+      embedding:
+        base-url: ${MALL_AI_EMBEDDING_BASE_URL:}
+        api-key: ${MALL_AI_EMBEDDING_API_KEY:}
+        options:
+          model: ${MALL_AI_EMBEDDING_MODEL:}
+
 server:
   port: 8080
 
-# Knife4j
+# API 文档（官方 springdoc；原 Knife4j 与 Boot 3.4 不兼容已移除）
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
   api-docs:
     path: /v3/api-docs
-
-knife4j:
-  enable: true
-  setting:
-    language: zh-CN
 
 # MyBatis-Plus
 mybatis-plus:
