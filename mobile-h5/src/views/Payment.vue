@@ -1,45 +1,44 @@
 <template>
-  <div class="payment-page">
+  <div class="page payment-page">
     <van-nav-bar title="支付订单" left-arrow fixed placeholder @click-left="handleBack" />
 
     <!-- 金额 -->
-    <div class="amount-section">
-      <div class="amount-label">支付金额</div>
+    <section class="amount-section rv" style="--i: 0">
+      <span class="eyebrow">AMOUNT DUE</span>
       <div class="amount-val">
-        <span class="sym">¥</span>{{ amount }}
+        <span class="sym">¥</span><span class="num">{{ amount }}</span>
       </div>
-      <div class="order-no">订单号：{{ orderNo || '-' }}</div>
-    </div>
+      <div class="order-no num">订单号 {{ orderNo || '-' }}</div>
+    </section>
 
     <!-- 支付方式 -->
-    <div class="pay-methods">
+    <section class="pay-methods rv" style="--i: 1">
       <div class="pay-title">选择支付方式</div>
 
       <div
         class="pay-item"
         v-for="method in payMethods"
         :key="method.value"
+        :class="{ active: selectedMethod === method.value }"
         @click="selectedMethod = method.value"
       >
         <div class="pay-item-left">
-          <van-icon :name="method.icon" :size="24" :color="method.color" />
+          <span class="pay-icon" :style="{ boxShadow: `0 0 18px -2px ${method.color}66` }">
+            <van-icon :name="method.icon" :size="20" :color="method.color" />
+          </span>
           <div class="pay-item-info">
             <span class="pay-item-name">{{ method.name }}</span>
             <span class="pay-item-desc">{{ method.desc }}</span>
           </div>
         </div>
-        <van-icon
-          :name="selectedMethod === method.value ? 'success' : 'circle'"
-          :color="selectedMethod === method.value ? '#FF2E93' : '#ddd'"
-          size="22"
-        />
+        <span class="pay-radio" :class="{ checked: selectedMethod === method.value }"></span>
       </div>
-    </div>
+    </section>
 
     <!-- 倒计时 -->
     <div class="timeout-info">
-      <van-icon name="clock-o" color="#999" />
-      <span>请在 <em>{{ timeLeft }}</em> 内完成支付</span>
+      <van-icon name="clock-o" color="#6d7490" size="14" />
+      <span>请在 <em class="num">{{ timeLeft }}</em> 内完成支付</span>
     </div>
 
     <!-- 支付按钮 -->
@@ -62,7 +61,7 @@
     <van-dialog
       v-model:show="showResult"
       :title="paySuccess ? '支付成功' : '支付失败'"
-      :confirm-button-color="paySuccess ? '#FF2E93' : '#666'"
+      :confirm-button-color="paySuccess ? '#FF2E93' : '#6d7490'"
       confirm-button-text="查看订单"
       @confirm="viewOrder"
       :closeable="false"
@@ -71,7 +70,7 @@
         <van-icon
           :name="paySuccess ? 'smile-o' : 'warning-o'"
           :size="48"
-          :color="paySuccess ? '#07c160' : '#ee0a24'"
+          :color="paySuccess ? '#34e39a' : '#ff4d6d'"
         />
       </div>
       <div class="result-msg">
@@ -100,9 +99,9 @@ const showResult = ref(false)
 const paySuccess = ref(false)
 
 const payMethods = [
-  { value: 3, icon: 'chat-o', name: '微信支付', desc: '推荐使用微信支付', color: '#07c160' },
-  { value: 2, icon: 'paid', name: '支付宝', desc: '支付宝安全支付', color: '#1677ff' },
-  { value: 1, icon: 'balance-o', name: '余额支付', desc: '账户余额支付', color: '#FF2E93' },
+  { value: 3, icon: 'chat-o', name: '微信支付', desc: '推荐使用微信支付', color: '#34e39a' },
+  { value: 2, icon: 'paid', name: '支付宝', desc: '支付宝安全支付', color: '#4d9bff' },
+  { value: 1, icon: 'balance-o', name: '余额支付', desc: '账户余额支付', color: '#ff2e93' },
 ]
 
 const amount = computed(() => Number(order.value?.payAmount || 0).toFixed(2))
@@ -194,58 +193,95 @@ onUnmounted(() => {
 
 <style scoped>
 .payment-page {
-  background: #f5f5f5;
-  min-height: 100vh;
-  padding-bottom: 30px;
+  padding-bottom: 34px;
 }
 
+/* ---------- 金额区 ---------- */
 .amount-section {
-  background: #fff;
-  text-align: center;
-  padding: 30px 16px 24px;
-  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0 var(--gutter);
+  padding: 26px 16px 24px;
+  border-radius: var(--r-lg);
+  background-image: linear-gradient(158deg, rgba(255, 46, 147, 0.14), rgba(255, 255, 255, 0.02) 55%, rgba(36, 229, 255, 0.08));
+  border: 1px solid var(--glass-line-2);
+  backdrop-filter: blur(var(--blur)) saturate(150%);
+  box-shadow: var(--shadow-card);
 }
-.amount-label {
-  font-size: 13px;
-  color: #999;
-  margin-bottom: 8px;
+.amount-section .eyebrow {
+  color: rgba(255, 46, 147, 0.75);
 }
 .amount-val {
-  font-size: 40px;
-  font-weight: 700;
-  color: #222;
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  margin-top: 12px;
+  color: var(--text-1);
 }
 .amount-val .sym {
-  font-size: 24px;
+  font-size: 22px;
+  color: var(--neon);
+}
+.amount-val .num {
+  font-family: var(--font-display);
+  font-size: 46px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  color: var(--neon);
+  text-shadow: 0 0 28px rgba(255, 46, 147, 0.55);
 }
 .order-no {
-  font-size: 12px;
-  color: #ccc;
-  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-3);
+  margin-top: 12px;
+  letter-spacing: 0.04em;
 }
 
+/* ---------- 支付方式 ---------- */
 .pay-methods {
-  background: #fff;
-  padding: 0 16px;
-  margin-bottom: 10px;
+  margin: var(--sp-3) var(--gutter) 0;
+  padding: 4px 16px 6px;
+  border-radius: var(--r-lg);
+  background-image: linear-gradient(158deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.015));
+  border: 1px solid var(--glass-line);
+  backdrop-filter: blur(var(--blur)) saturate(150%);
+  box-shadow: var(--shadow-card);
 }
 .pay-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: #333;
-  padding: 14px 0;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-1);
+  letter-spacing: 0.06em;
+  padding: 15px 0 6px;
 }
 .pay-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 0;
-  border-top: 1px solid #f5f5f5;
+  padding: 13px 2px;
+  border-top: 1px solid var(--glass-line);
+  transition: background var(--dur-fast) var(--ease-out);
+}
+.pay-item.active {
+  background-image: linear-gradient(90deg, rgba(255, 46, 147, 0.09), transparent 70%);
 }
 .pay-item-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+}
+.pay-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--r-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--glass-2);
+  border: 1px solid var(--glass-line);
 }
 .pay-item-info {
   display: flex;
@@ -253,43 +289,59 @@ onUnmounted(() => {
 }
 .pay-item-name {
   font-size: 14px;
-  color: #333;
+  color: var(--text-1);
   font-weight: 500;
 }
 .pay-item-desc {
   font-size: 11px;
-  color: #999;
-  margin-top: 2px;
+  color: var(--text-3);
+  margin-top: 3px;
+}
+/* 自绘单选圈：选中时霓虹发光 */
+.pay-radio {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--glass-line-2);
+  flex-shrink: 0;
+  transition: all var(--dur-fast) var(--ease-out);
+}
+.pay-radio.checked {
+  border-color: var(--neon);
+  box-shadow: 0 0 14px rgba(255, 46, 147, 0.7), inset 0 0 0 3px var(--ink-900);
+  background: var(--neon);
 }
 
 .timeout-info {
-  text-align: center;
-  padding: 20px 16px;
-  font-size: 13px;
-  color: #999;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 5px;
+  padding: 22px 16px;
+  font-size: 12px;
+  color: var(--text-3);
+  letter-spacing: 0.04em;
 }
 .timeout-info em {
   font-style: normal;
-  color: #FF2E93;
-  font-weight: 600;
+  color: var(--neon-soft);
+  font-weight: 700;
+  font-size: 14px;
 }
 
 .pay-btn-section {
-  padding: 0 16px;
+  padding: 0 var(--gutter);
 }
 
 .result-icon {
   text-align: center;
-  padding: 10px 0;
+  padding: 12px 0 4px;
 }
 .result-msg {
   text-align: center;
-  font-size: 14px;
-  color: #666;
-  padding-bottom: 10px;
+  font-size: 13px;
+  color: var(--text-2);
+  padding-bottom: 12px;
 }
 </style>

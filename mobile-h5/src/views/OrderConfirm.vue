@@ -1,73 +1,73 @@
 <template>
-  <div class="order-confirm-page">
+  <div class="page order-confirm-page">
     <van-nav-bar title="确认订单" left-arrow fixed placeholder @click-left="router.back()" />
 
     <!-- 收货地址 -->
-    <div class="address-section" @click="openAddressSheet">
+    <section class="address-section rv" style="--i: 0" @click="openAddressSheet">
       <div class="address-info" v-if="selectedAddress">
         <div class="address-top">
           <span class="address-name">{{ selectedAddress.receiverName }}</span>
-          <span class="address-phone">{{ selectedAddress.receiverPhone }}</span>
-          <van-tag v-if="selectedAddress.isDefault === 1" plain type="danger" size="small">默认</van-tag>
-          <van-icon name="arrow" color="#ccc" style="margin-left:auto" />
+          <span class="address-phone num">{{ selectedAddress.receiverPhone }}</span>
+          <span v-if="selectedAddress.isDefault === 1" class="address-default">默认</span>
+          <van-icon name="arrow" color="#6d7490" style="margin-left:auto" />
         </div>
         <div class="address-detail">{{ selectedAddress.fullAddress }}</div>
       </div>
       <div class="address-empty" v-else>
-        <van-icon name="add" color="#FF2E93" />
+        <van-icon name="add" color="#ff2e93" />
         <span>添加收货地址</span>
-        <van-icon name="arrow" color="#ccc" style="margin-left:auto" />
+        <van-icon name="arrow" color="#6d7490" style="margin-left:auto" />
       </div>
-    </div>
+    </section>
 
     <!-- 商品列表 -->
-    <div class="order-goods">
+    <section class="order-goods rv" style="--i: 1">
       <div class="goods-item" v-for="item in confirmData?.items || []" :key="item.skuId">
         <div class="goods-img">
           <img v-if="item.productImage" :src="item.productImage" class="goods-img-el" alt="" />
-          <van-icon v-else name="photo-o" :size="36" color="#ccc" />
+          <van-icon v-else name="photo-o" :size="36" color="#6d7490" />
         </div>
         <div class="goods-info">
           <div class="goods-name van-multi-ellipsis--l2">{{ item.productName }}</div>
           <div class="goods-spec">{{ item.attrs }}</div>
           <div class="goods-bottom">
             <span class="goods-price">
-              <span class="sym">¥</span>{{ money(item.price) }}
+              <span class="sym">¥</span><span class="num">{{ money(item.price) }}</span>
             </span>
-            <span class="goods-qty">x{{ item.quantity }}</span>
+            <span class="goods-qty num">x{{ item.quantity }}</span>
           </div>
         </div>
       </div>
       <van-empty v-if="!confirmData" description="暂无可结算商品" />
-    </div>
+    </section>
 
     <!-- 配送方式 -->
-    <div class="section-block">
+    <section class="section-block rv" style="--i: 2">
       <div class="section-row">
         <span class="section-label">配送方式</span>
         <span class="section-value">快递配送</span>
       </div>
       <div class="section-row">
         <span class="section-label">运费</span>
-        <span class="section-value" style="color:#FF2E93">
+        <span class="section-value highlight">
           {{ freightText }}
         </span>
       </div>
-    </div>
+    </section>
 
     <!-- 优惠券 -->
-    <div class="section-block">
+    <section class="section-block rv" style="--i: 3">
       <div class="section-row" @click="showCouponSheet = true">
         <span class="section-label">优惠券</span>
-        <span class="section-value" :style="{ color: selectedCoupon ? '#FF2E93' : '#999' }">
+        <span class="section-value" :class="{ highlight: selectedCoupon }">
           {{ selectedCoupon ? couponText(selectedCoupon) : (availableCoupons.length ? availableCoupons.length + ' 张可用' : '无可用') }}
         </span>
-        <van-icon name="arrow" color="#ccc" />
+        <van-icon name="arrow" color="#6d7490" />
       </div>
-    </div>
+    </section>
 
     <!-- 备注 -->
-    <div class="section-block">
+    <section class="section-block rv" style="--i: 4">
       <div class="section-row">
         <span class="section-label">订单备注</span>
         <input
@@ -76,30 +76,30 @@
           placeholder="选填：备注信息"
         />
       </div>
-    </div>
+    </section>
 
     <!-- 底部金额 -->
-    <div class="order-summary">
+    <section class="order-summary rv" style="--i: 5">
       <div class="summary-row">
         <span>商品总额</span>
-        <span>¥{{ money(confirmData?.totalAmount) }}</span>
+        <span class="num">¥{{ money(confirmData?.totalAmount) }}</span>
       </div>
       <div class="summary-row">
         <span>运费</span>
-        <span>{{ freightText }}</span>
+        <span class="num">{{ freightText }}</span>
       </div>
       <div class="summary-row">
         <span>优惠</span>
-        <span style="color:#FF2E93">-¥{{ money(confirmData?.discountAmount) }}</span>
+        <span class="num discount">-¥{{ money(confirmData?.discountAmount) }}</span>
       </div>
-    </div>
+    </section>
 
     <!-- 底部提交栏 -->
     <div class="bottom-bar">
       <div class="bar-total">
-        <span class="bar-label">合计：</span>
+        <span class="bar-label">合计</span>
         <span class="bar-price">
-          <span class="sym">¥</span>{{ money(confirmData?.payAmount) }}
+          <span class="sym">¥</span><span class="num">{{ money(confirmData?.payAmount) }}</span>
         </span>
       </div>
       <div class="submit-btn" :class="{ disabled: submitting }" @click="handleSubmit">
@@ -120,8 +120,8 @@
         >
           <div class="addr-top">
             <span class="addr-name">{{ addr.receiverName }}</span>
-            <span class="addr-phone">{{ addr.receiverPhone }}</span>
-            <van-tag v-if="addr.isDefault === 1" plain type="danger" size="small">默认</van-tag>
+            <span class="addr-phone num">{{ addr.receiverPhone }}</span>
+            <span v-if="addr.isDefault === 1" class="addr-default">默认</span>
           </div>
           <div class="addr-detail">{{ addr.fullAddress }}</div>
         </div>
@@ -143,12 +143,12 @@
           @click="selectCoupon(c)"
         >
           <div class="coupon-left">
-            <div class="coupon-amount">{{ couponValue(c) }}</div>
-            <div class="coupon-threshold">满¥{{ money(c.thresholdAmount) }}可用</div>
+            <div class="coupon-amount num">{{ couponValue(c) }}</div>
+            <div class="coupon-threshold num">满¥{{ money(c.thresholdAmount) }}可用</div>
           </div>
           <div class="coupon-right">
             <div class="coupon-name">{{ c.name }}</div>
-            <div class="coupon-expire">有效期至 {{ formatDate(c.expireTime) }}</div>
+            <div class="coupon-expire num">有效期至 {{ formatDate(c.expireTime) }}</div>
           </div>
         </div>
         <van-empty v-if="!availableCoupons.length" description="暂无可用优惠券" />
@@ -427,59 +427,73 @@ onMounted(async () => {
 
 <style scoped>
 .order-confirm-page {
-  background: #f5f5f5;
-  min-height: 100vh;
-  padding-bottom: 60px;
+  padding-bottom: 74px;
 }
 
-/* 地址 */
+/* ---------- 地址 ---------- */
 .address-section {
-  background: #fff;
-  margin-bottom: 10px;
-  padding: 14px 16px;
+  position: relative;
+  margin: 0 var(--gutter);
+  padding: 16px;
+  border-radius: var(--r-lg);
   cursor: pointer;
-}
-.address-info {
-  cursor: pointer;
+  background-image: linear-gradient(158deg, rgba(36, 229, 255, 0.12), rgba(255, 255, 255, 0.02) 55%, rgba(255, 46, 147, 0.1));
+  border: 1px solid var(--glass-line-2);
+  backdrop-filter: blur(var(--blur)) saturate(150%);
+  box-shadow: var(--shadow-card);
 }
 .address-top {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 4px;
+  margin-bottom: 5px;
 }
 .address-name {
   font-size: 15px;
   font-weight: 600;
-  color: #222;
+  color: var(--text-1);
 }
 .address-phone {
   font-size: 13px;
-  color: #666;
+  color: var(--text-2);
+}
+.address-default {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: #fff;
+  padding: 1px 8px;
+  border-radius: var(--r-pill);
+  background-image: linear-gradient(135deg, var(--neon), var(--violet));
+  box-shadow: 0 0 12px rgba(255, 46, 147, 0.75);
 }
 .address-detail {
-  font-size: 13px;
-  color: #999;
+  font-size: 12px;
+  color: var(--text-3);
+  line-height: 1.6;
 }
 .address-empty {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   font-size: 14px;
-  color: #333;
+  color: var(--text-1);
 }
 
-/* 商品 */
+/* ---------- 商品 ---------- */
 .order-goods {
-  background: #fff;
-  padding: 0 16px;
-  margin-bottom: 10px;
+  margin: var(--sp-3) var(--gutter) 0;
+  padding: 2px 16px;
+  border-radius: var(--r-md);
+  background-image: linear-gradient(158deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.015));
+  border: 1px solid var(--glass-line);
+  backdrop-filter: blur(var(--blur)) saturate(150%);
+  box-shadow: var(--shadow-card);
 }
 .goods-item {
   display: flex;
-  gap: 10px;
-  padding: 12px 0;
-  border-bottom: 1px solid #f5f5f5;
+  gap: 11px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--glass-line);
 }
 .goods-item:last-child {
   border-bottom: none;
@@ -487,8 +501,9 @@ onMounted(async () => {
 .goods-img {
   width: 72px;
   height: 72px;
-  background: #fafafa;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -506,201 +521,261 @@ onMounted(async () => {
 }
 .goods-name {
   font-size: 13px;
-  color: #222;
-  line-height: 1.4;
+  color: var(--text-1);
+  line-height: 1.42;
 }
 .goods-spec {
   font-size: 11px;
-  color: #999;
-  margin-top: 2px;
+  color: var(--text-3);
+  margin-top: 3px;
 }
 .goods-bottom {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 6px;
+  margin-top: 7px;
 }
 .goods-price {
-  color: #FF2E93;
+  display: flex;
+  align-items: baseline;
+  gap: 1px;
+  color: var(--neon);
   font-weight: 700;
+}
+.goods-price .sym {
+  font-size: 11px;
+}
+.goods-price .num {
   font-size: 16px;
 }
-.goods-price .sym { font-size: 11px; }
 .goods-qty {
   font-size: 12px;
-  color: #999;
+  color: var(--text-3);
 }
 
-/* 区块 */
+/* ---------- 区块 ---------- */
 .section-block {
-  background: #fff;
+  margin: var(--sp-3) var(--gutter) 0;
   padding: 0 16px;
-  margin-bottom: 10px;
+  border-radius: var(--r-md);
+  background-image: linear-gradient(158deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.015));
+  border: 1px solid var(--glass-line);
+  backdrop-filter: blur(var(--blur)) saturate(150%);
+  box-shadow: var(--shadow-card);
 }
 .section-row {
   display: flex;
   align-items: center;
-  padding: 14px 0;
-  border-bottom: 1px solid #f5f5f5;
+  padding: 15px 0;
+  border-bottom: 1px solid var(--glass-line);
 }
-.section-block .section-row:last-child { border-bottom: none; }
+.section-block .section-row:last-child {
+  border-bottom: none;
+}
 .section-label {
-  font-size: 14px;
-  color: #666;
-  width: 70px;
+  font-size: 13px;
+  color: var(--text-3);
+  width: 66px;
   flex-shrink: 0;
+  letter-spacing: 0.06em;
 }
 .section-value {
   flex: 1;
   font-size: 14px;
-  color: #333;
+  color: var(--text-1);
   text-align: right;
+}
+.section-value.highlight {
+  color: var(--neon);
+  font-weight: 600;
 }
 .remark-input {
   flex: 1;
   border: none;
   outline: none;
+  background: transparent;
   font-size: 14px;
   text-align: right;
-  color: #333;
+  color: var(--text-1);
+  font-family: inherit;
 }
 .remark-input::placeholder {
-  color: #ccc;
+  color: var(--text-3);
 }
 
-/* 汇总 */
+/* ---------- 汇总 ---------- */
 .order-summary {
-  background: #fff;
-  padding: 0 16px;
-  margin-bottom: 10px;
+  margin: var(--sp-3) var(--gutter) 0;
+  padding: 6px 16px;
+  border-radius: var(--r-md);
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  backdrop-filter: blur(var(--blur));
 }
 .summary-row {
   display: flex;
   justify-content: space-between;
-  padding: 8px 0;
+  padding: 9px 0;
   font-size: 13px;
-  color: #666;
+  color: var(--text-2);
+}
+.summary-row .discount {
+  color: var(--ok);
 }
 
-/* 底部 */
+/* ---------- 底部 ---------- */
 .bottom-bar {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  height: 56px;
-  background: #fff;
+  height: 64px;
   display: flex;
   align-items: center;
-  padding: 0 12px;
+  padding: 0 var(--gutter);
   gap: 10px;
-  border-top: 1px solid #f0f0f0;
+  backdrop-filter: blur(var(--blur-lg)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--blur-lg)) saturate(160%);
+  background-image: linear-gradient(180deg, rgba(12, 14, 22, 0.72), rgba(8, 9, 15, 0.96));
+  border-top: 1px solid var(--glass-line);
+  box-shadow: var(--shadow-float);
   z-index: 99;
 }
 .bar-total {
   flex: 1;
-  text-align: right;
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 5px;
 }
 .bar-label {
-  font-size: 13px;
-  color: #666;
+  font-size: 11px;
+  color: var(--text-3);
+  letter-spacing: 0.1em;
 }
 .bar-price {
-  color: #FF2E93;
+  display: flex;
+  align-items: baseline;
+  gap: 1px;
+  color: var(--neon);
   font-weight: 700;
-  font-size: 20px;
 }
-.bar-price .sym { font-size: 13px; }
+.bar-price .sym {
+  font-size: 13px;
+}
+.bar-price .num {
+  font-size: 22px;
+  text-shadow: 0 0 18px rgba(255, 46, 147, 0.6);
+}
 .submit-btn {
-  width: 120px;
-  height: 40px;
-  line-height: 40px;
+  width: 126px;
+  height: 42px;
+  line-height: 42px;
   text-align: center;
-  background: linear-gradient(135deg, #FF2E93, #ff6b9d);
+  border-radius: var(--r-pill);
+  background-image: linear-gradient(135deg, var(--neon), #ff5ea8 55%, var(--violet));
   color: #fff;
-  border-radius: 20px;
   font-size: 14px;
   font-weight: 600;
+  letter-spacing: 0.06em;
+  box-shadow: var(--glow-neon);
 }
 .submit-btn.disabled {
-  opacity: 0.6;
+  opacity: 0.55;
 }
 
-/* 地址选择 */
+/* ---------- 地址选择 ---------- */
 .address-list {
-  padding: 0 16px 20px;
-  max-height: 50vh;
+  padding: 0 16px 22px;
+  max-height: 52vh;
   overflow-y: auto;
 }
 .address-card {
   padding: 14px;
-  border: 1px solid #f0f0f0;
-  border-radius: 10px;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r-md);
   margin-bottom: 10px;
+  background: var(--glass);
+  transition: all var(--dur-fast) var(--ease-out);
 }
 .address-card.active {
-  border-color: #FF2E93;
-  background: #fff5f8;
+  border-color: rgba(255, 46, 147, 0.65);
+  background-image: linear-gradient(140deg, rgba(255, 46, 147, 0.14), rgba(255, 255, 255, 0.02));
+  box-shadow: var(--glow-neon);
 }
 .manage-address {
   text-align: right;
   font-size: 12px;
-  color: #FF2E93;
-  padding: 0 2px 10px;
+  color: var(--neon-soft);
+  padding: 0 2px 12px;
 }
 .addr-top {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 4px;
+  margin-bottom: 5px;
 }
 .addr-name {
   font-size: 14px;
   font-weight: 600;
-  color: #222;
+  color: var(--text-1);
 }
 .addr-phone {
   font-size: 12px;
-  color: #666;
+  color: var(--text-2);
+}
+.addr-default {
+  font-size: 10px;
+  color: var(--neon-soft);
+  border: 1px solid rgba(255, 46, 147, 0.5);
+  border-radius: var(--r-pill);
+  padding: 0 7px;
 }
 .addr-detail {
   font-size: 12px;
-  color: #999;
+  color: var(--text-3);
+  line-height: 1.55;
 }
 
-/* 优惠券选择 */
+/* ---------- 优惠券选择 ---------- */
 .coupon-list {
-  padding: 0 16px 20px;
-  max-height: 50vh;
+  padding: 0 16px 22px;
+  max-height: 52vh;
   overflow-y: auto;
 }
 .coupon-card {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px;
-  border: 1px solid #f0f0f0;
-  border-radius: 10px;
+  padding: 13px;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r-md);
   margin-bottom: 10px;
+  background: var(--glass);
+  transition: all var(--dur-fast) var(--ease-out);
 }
 .coupon-card.active {
-  border-color: #FF2E93;
-  background: #fff5f8;
+  border-color: rgba(255, 46, 147, 0.65);
+  background-image: linear-gradient(140deg, rgba(255, 46, 147, 0.14), rgba(255, 255, 255, 0.02));
+  box-shadow: var(--glow-neon);
 }
 .coupon-left {
-  width: 90px;
+  width: 92px;
   text-align: center;
-  border-right: 1px dashed #eee;
+  border-right: 1px dashed var(--glass-line-2);
+  flex-shrink: 0;
 }
 .coupon-amount {
-  font-size: 18px;
+  font-family: var(--font-display);
+  font-size: 19px;
   font-weight: 700;
-  color: #FF2E93;
+  color: var(--neon);
+  text-shadow: 0 0 16px rgba(255, 46, 147, 0.55);
 }
 .coupon-threshold {
   font-size: 10px;
-  color: #999;
-  margin-top: 2px;
+  color: var(--text-3);
+  margin-top: 4px;
 }
 .coupon-right {
   flex: 1;
@@ -708,34 +783,37 @@ onMounted(async () => {
 }
 .coupon-name {
   font-size: 13px;
-  color: #333;
+  color: var(--text-1);
+  font-weight: 500;
 }
 .coupon-expire {
   font-size: 11px;
-  color: #999;
-  margin-top: 4px;
+  color: var(--text-3);
+  margin-top: 5px;
 }
 
-/* 新增地址 */
+/* ---------- 新增地址 ---------- */
 .add-addr-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 16px;
-  font-size: 14px;
-  color: #666;
-  border-bottom: 1px solid #f5f5f5;
+  padding: 15px 16px;
+  font-size: 13px;
+  color: var(--text-2);
+  border-bottom: 1px solid var(--glass-line);
 }
 .add-addr-header .title {
+  font-family: var(--font-display);
   font-size: 16px;
-  font-weight: 600;
-  color: #222;
+  font-weight: 700;
+  color: var(--text-1);
+  letter-spacing: 0.04em;
 }
 .add-addr-header .confirm {
-  color: #FF2E93;
+  color: var(--neon);
   font-weight: 600;
 }
 .add-addr-form {
-  padding-bottom: 10px;
+  padding-bottom: 12px;
 }
 </style>

@@ -1,16 +1,18 @@
 <template>
-  <div class="login-page">
+  <div class="page login-page">
     <van-nav-bar title="登录" />
 
-    <div class="login-header">
+    <div class="login-header rv" style="--i: 0">
+      <span class="eyebrow">WELCOME BACK</span>
       <div class="logo">
-        <van-icon name="shop-o" size="40" color="#fff" />
+        <van-icon name="shop-o" size="34" color="#fff" />
+        <span class="logo-halo"></span>
       </div>
-      <div class="welcome">欢迎来到 Mall 商城</div>
+      <div class="welcome">欢迎来到 <em>Mall</em> 商城</div>
       <div class="sub">登录后即可享受完整购物体验</div>
     </div>
 
-    <van-form @submit="handleLogin" class="login-form">
+    <van-form @submit="handleLogin" class="login-form rv" style="--i: 1">
       <van-cell-group inset>
         <van-field
           v-model="phone"
@@ -57,6 +59,8 @@
           登录
         </van-button>
       </div>
+
+      <p class="login-hint">未注册的手机号将自动创建账号</p>
     </van-form>
   </div>
 </template>
@@ -133,39 +137,70 @@ onUnmounted(() => {
 
 <style scoped>
 .login-page {
-  background: #f5f5f5;
   min-height: 100vh;
 }
 
 .login-header {
-  padding: 40px 0 30px;
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 46px 0 34px;
+}
+.login-header .eyebrow {
+  color: rgba(255, 46, 147, 0.7);
+  margin-bottom: 18px;
 }
 .logo {
-  width: 72px;
-  height: 72px;
-  border-radius: 18px;
-  background: linear-gradient(135deg, #FF2E93, #ff6b9d);
+  position: relative;
+  width: 78px;
+  height: 78px;
+  border-radius: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 16px;
+  background-image: linear-gradient(140deg, var(--neon), #ff5ea8 50%, var(--violet));
+  box-shadow: var(--glow-neon), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  animation: floatY 5.2s var(--ease-out) infinite;
+}
+.logo-halo {
+  position: absolute;
+  inset: -14px;
+  border-radius: 34px;
+  background: radial-gradient(circle, rgba(255, 46, 147, 0.42), transparent 68%);
+  filter: blur(14px);
+  z-index: -1;
 }
 .welcome {
-  font-size: 20px;
+  margin-top: 22px;
+  font-family: var(--font-display);
+  font-size: 22px;
   font-weight: 700;
-  color: #222;
+  color: var(--text-1);
+  letter-spacing: 0.04em;
+}
+.welcome em {
+  font-style: normal;
+  color: var(--neon);
+  text-shadow: 0 0 20px rgba(255, 46, 147, 0.75);
 }
 .sub {
-  font-size: 13px;
-  color: #999;
-  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-3);
+  margin-top: 8px;
+  letter-spacing: 0.06em;
 }
 
 .login-form {
-  margin-top: 8px;
+  margin-top: 4px;
 }
 .login-btn-section {
-  padding: 24px 24px 0;
+  padding: 26px var(--gutter) 0;
+}
+.login-hint {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-3);
+  padding-top: 16px;
+  letter-spacing: 0.04em;
 }
 </style>

@@ -1,33 +1,33 @@
 <template>
-  <div class="address-page">
+  <div class="page address-page">
     <van-nav-bar title="收货地址" left-arrow fixed placeholder @click-left="$router.back()" />
 
     <van-skeleton v-if="loading" title :row="4" style="padding: 16px" />
 
     <template v-else>
       <div class="address-list" v-if="list.length">
-        <div class="address-card" v-for="addr in list" :key="addr.id">
+        <div class="address-card rv" v-for="(addr, i) in list" :key="addr.id" :style="{ '--i': i }">
           <div class="addr-top">
             <span class="addr-name">{{ addr.receiverName }}</span>
-            <span class="addr-phone">{{ addr.receiverPhone }}</span>
-            <van-tag v-if="addr.isDefault === 1" plain type="danger" size="small">默认</van-tag>
+            <span class="addr-phone num">{{ addr.receiverPhone }}</span>
+            <span v-if="addr.isDefault === 1" class="addr-default">默认</span>
             <span v-if="addr.label" class="addr-label">{{ addr.label }}</span>
           </div>
           <div class="addr-detail">{{ addr.fullAddress }}</div>
           <div class="addr-actions">
             <div
               class="addr-action"
-              :class="{ disabled: addr.isDefault === 1 }"
+              :class="{ active: addr.isDefault === 1 }"
               @click="handleSetDefault(addr)"
             >
-              <van-icon :name="addr.isDefault === 1 ? 'checked' : 'circle'" :color="addr.isDefault === 1 ? '#FF2E93' : '#ccc'" />
+              <van-icon :name="addr.isDefault === 1 ? 'checked' : 'circle'" size="14" />
               设为默认
             </div>
             <div class="addr-action" @click="openEdit(addr)">
-              <van-icon name="edit" /> 编辑
+              <van-icon name="edit" size="14" /> 编辑
             </div>
             <div class="addr-action" @click="handleDelete(addr)">
-              <van-icon name="delete-o" /> 删除
+              <van-icon name="delete-o" size="14" /> 删除
             </div>
           </div>
         </div>
@@ -209,65 +209,82 @@ onMounted(loadList)
 
 <style scoped>
 .address-page {
-  background: #f5f5f5;
-  min-height: 100vh;
-  padding-bottom: 80px;
+  padding-bottom: 96px;
 }
 
 .address-list {
-  padding: 10px 12px;
+  padding: 14px var(--gutter) 0;
 }
 .address-card {
-  background: #fff;
-  border-radius: 10px;
-  padding: 14px;
-  margin-bottom: 10px;
+  position: relative;
+  margin-bottom: 12px;
+  padding: 15px 16px;
+  border-radius: var(--r-md);
+  background-image: linear-gradient(158deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.015));
+  border: 1px solid var(--glass-line);
+  backdrop-filter: blur(var(--blur)) saturate(150%);
+  box-shadow: var(--shadow-card);
+  animation: riseIn 0.55s var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 62ms);
 }
 .addr-top {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
+  gap: 9px;
+  margin-bottom: 7px;
   flex-wrap: wrap;
 }
 .addr-name {
   font-size: 15px;
   font-weight: 600;
-  color: #222;
+  color: var(--text-1);
 }
 .addr-phone {
   font-size: 13px;
-  color: #666;
+  color: var(--text-2);
+}
+.addr-default {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: #fff;
+  padding: 1px 8px;
+  border-radius: var(--r-pill);
+  background-image: linear-gradient(135deg, var(--neon), var(--violet));
+  box-shadow: 0 0 12px rgba(255, 46, 147, 0.75);
 }
 .addr-label {
-  font-size: 11px;
-  color: #FF2E93;
-  border: 1px solid #FF2E93;
-  border-radius: 4px;
-  padding: 0 4px;
+  font-size: 10px;
+  color: var(--cyan-soft);
+  border: 1px solid rgba(36, 229, 255, 0.36);
+  border-radius: var(--r-pill);
+  padding: 1px 8px;
 }
 .addr-detail {
-  font-size: 13px;
-  color: #999;
-  line-height: 1.5;
+  font-size: 12px;
+  color: var(--text-3);
+  line-height: 1.6;
 }
 .addr-actions {
   display: flex;
   align-items: center;
-  gap: 18px;
-  margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px solid #f5f5f5;
+  gap: 20px;
+  margin-top: 13px;
+  padding-top: 11px;
+  border-top: 1px solid var(--glass-line);
 }
 .addr-action {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 13px;
-  color: #666;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-2);
+  transition: color var(--dur-fast) var(--ease-out);
 }
-.addr-action.disabled {
-  color: #FF2E93;
+.addr-action.active {
+  color: var(--neon);
+}
+.addr-action:active {
+  opacity: 0.6;
 }
 
 .bottom-bar {
@@ -275,9 +292,12 @@ onMounted(loadList)
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 10px 16px;
-  background: #fff;
-  border-top: 1px solid #f0f0f0;
+  padding: 11px var(--gutter);
+  backdrop-filter: blur(var(--blur-lg)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--blur-lg)) saturate(160%);
+  background-image: linear-gradient(180deg, rgba(12, 14, 22, 0.72), rgba(8, 9, 15, 0.96));
+  border-top: 1px solid var(--glass-line);
+  box-shadow: var(--shadow-float);
   z-index: 99;
 }
 
@@ -285,18 +305,20 @@ onMounted(loadList)
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 16px;
-  font-size: 14px;
-  color: #666;
-  border-bottom: 1px solid #f5f5f5;
+  padding: 15px 16px;
+  font-size: 13px;
+  color: var(--text-2);
+  border-bottom: 1px solid var(--glass-line);
 }
 .form-header .title {
+  font-family: var(--font-display);
   font-size: 16px;
-  font-weight: 600;
-  color: #222;
+  font-weight: 700;
+  color: var(--text-1);
+  letter-spacing: 0.04em;
 }
 .form-header .confirm {
-  color: #FF2E93;
+  color: var(--neon);
   font-weight: 600;
 }
 .form-body {

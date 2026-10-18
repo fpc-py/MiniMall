@@ -1,5 +1,5 @@
 <template>
-  <div class="refund-list-page">
+  <div class="page refund-list-page">
     <van-nav-bar title="退款 / 售后" left-arrow fixed placeholder @click-left="$router.back()" />
 
     <van-tabs v-model:active="activeTab" sticky offset-top="46" color="#FF2E93" line-width="20" @change="resetAndReload">
@@ -20,21 +20,31 @@
       @load="onLoad"
     >
       <div class="refund-list" v-if="list.length">
-        <div class="refund-card" v-for="r in list" :key="r.id">
+        <div
+          class="refund-card rv"
+          v-for="(r, i) in list"
+          :key="r.id"
+          :style="{ '--i': i }"
+        >
           <div class="refund-header">
-            <span class="refund-no">退款单号：{{ r.refundNo }}</span>
-            <span class="refund-status" :style="{ color: statusColor(r.status) }">
+            <span class="refund-no num">退款单号 {{ r.refundNo }}</span>
+            <span
+              class="refund-status"
+              :style="{ color: statusColor(r.status), borderColor: statusColor(r.status) }"
+            >
               {{ statusText(r.status) }}
             </span>
           </div>
           <div class="refund-body">
             <div class="refund-row">
               <span class="row-label">订单编号</span>
-              <span class="row-value">{{ r.orderNo }}</span>
+              <span class="row-value num">{{ r.orderNo }}</span>
             </div>
             <div class="refund-row">
               <span class="row-label">退款金额</span>
-              <span class="row-value amount">¥{{ money(r.refundAmount) }}</span>
+              <span class="row-value amount">
+                <span class="sym">¥</span><span class="num">{{ money(r.refundAmount) }}</span>
+              </span>
             </div>
             <div class="refund-row">
               <span class="row-label">退款原因</span>
@@ -50,7 +60,7 @@
             </div>
             <div class="refund-row">
               <span class="row-label">申请时间</span>
-              <span class="row-value">{{ r.createTime }}</span>
+              <span class="row-value num">{{ r.createTime }}</span>
             </div>
           </div>
           <div class="refund-actions" v-if="r.status === 0">
@@ -74,7 +84,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { showToast, showConfirmDialog } from 'vant'
 import { getMyRefunds, cancelRefund } from '@/api/refund'
 
@@ -102,8 +112,8 @@ function statusText(status) {
 }
 
 function statusColor(status) {
-  const map = { 0: '#f57c00', 1: '#1677ff', 2: '#07c160', 3: '#ee0a24', 4: '#999' }
-  return map[status] || '#999'
+  const map = { 0: '#ffb020', 1: '#4d9bff', 2: '#34e39a', 3: '#ff4d6d', 4: '#6d7490' }
+  return map[status] || '#6d7490'
 }
 
 async function onLoad() {
@@ -160,60 +170,83 @@ onMounted(resetAndReload)
 
 <style scoped>
 .refund-list-page {
-  background: #f5f5f5;
-  min-height: 100vh;
-  padding-bottom: 20px;
+  padding-bottom: 24px;
 }
 
 .refund-list {
-  padding: 10px 12px;
+  padding: 14px var(--gutter) 0;
 }
 .refund-card {
-  background: #fff;
-  border-radius: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
+  border-radius: var(--r-lg);
   overflow: hidden;
+  background-image: linear-gradient(158deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.015));
+  border: 1px solid var(--glass-line);
+  backdrop-filter: blur(var(--blur)) saturate(150%);
+  box-shadow: var(--shadow-card);
+  animation: riseIn 0.55s var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 62ms);
 }
 .refund-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 14px;
-  border-bottom: 1px solid #f5f5f5;
+  gap: 10px;
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--glass-line);
 }
 .refund-no {
-  font-size: 12px;
-  color: #999;
+  font-size: 11px;
+  color: var(--text-3);
+  letter-spacing: 0.04em;
 }
 .refund-status {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 2px 10px;
+  border: 1px solid;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.03);
+  flex-shrink: 0;
 }
 .refund-body {
-  padding: 8px 14px;
+  padding: 10px 14px 12px;
 }
 .refund-row {
   display: flex;
   justify-content: space-between;
+  align-items: baseline;
   gap: 12px;
-  padding: 5px 0;
+  padding: 6px 0;
   font-size: 13px;
 }
 .row-label {
-  color: #999;
+  color: var(--text-3);
   flex-shrink: 0;
 }
 .row-value {
-  color: #333;
+  color: var(--text-1);
   text-align: right;
+  word-break: break-all;
 }
 .row-value.amount {
-  color: #FF2E93;
+  display: flex;
+  align-items: baseline;
+  gap: 1px;
+  color: var(--neon);
   font-weight: 700;
+}
+.row-value.amount .sym {
+  font-size: 11px;
+}
+.row-value.amount .num {
+  font-size: 16px;
+  text-shadow: 0 0 14px rgba(255, 46, 147, 0.55);
 }
 .refund-actions {
   display: flex;
   justify-content: flex-end;
-  padding: 8px 14px 12px;
+  padding: 4px 14px 14px;
 }
 </style>

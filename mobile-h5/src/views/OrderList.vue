@@ -1,5 +1,5 @@
 <template>
-  <div class="order-list-page">
+  <div class="page order-list-page">
     <van-nav-bar title="我的订单" fixed placeholder />
 
     <!-- 订单标签 -->
@@ -17,17 +17,26 @@
       description="暂无相关订单"
     >
       <template #image>
-        <van-icon name="orders-o" size="80" color="#eee" />
+        <van-icon name="orders-o" size="80" color="#2a2f42" />
       </template>
       <van-button round type="danger" color="#FF2E93" size="small" @click="$router.push('/')">去逛逛</van-button>
     </van-empty>
 
     <!-- 订单列表 -->
     <div class="order-list" v-else>
-      <div class="order-card" v-for="order in orders" :key="order.id" @click="goDetail(order.id)">
+      <div
+        class="order-card rv"
+        v-for="(order, i) in orders"
+        :key="order.id"
+        :style="{ '--i': i }"
+        @click="goDetail(order.id)"
+      >
         <div class="order-header">
-          <span class="order-no">{{ order.orderNo }}</span>
-          <span class="order-status" :style="{ color: statusColor(order.orderStatus) }">
+          <span class="order-no num">{{ order.orderNo }}</span>
+          <span
+            class="order-status"
+            :style="{ color: statusColor(order.orderStatus), borderColor: statusColor(order.orderStatus) }"
+          >
             {{ statusText(order.orderStatus) }}
           </span>
         </div>
@@ -35,28 +44,30 @@
         <div class="order-goods" v-for="item in order.items || []" :key="item.skuId">
           <div class="order-goods-img">
             <img v-if="item.productImage" :src="item.productImage" class="order-goods-img-el" alt="" />
-            <van-icon v-else name="photo-o" :size="36" color="#ccc" />
+            <van-icon v-else name="photo-o" :size="36" color="#6d7490" />
           </div>
           <div class="order-goods-info">
             <div class="order-goods-name van-multi-ellipsis--l2">{{ item.productName }}</div>
             <div class="order-goods-spec">{{ item.attrs }}</div>
             <div class="order-goods-bottom">
               <span class="order-goods-price">
-                <span class="sym">¥</span>{{ money(item.price) }}
+                <span class="sym">¥</span><span class="num">{{ money(item.price) }}</span>
               </span>
-              <span class="order-goods-qty">x{{ item.quantity }}</span>
+              <span class="order-goods-qty num">x{{ item.quantity }}</span>
             </div>
           </div>
         </div>
 
         <div class="order-footer">
-          <div class="order-total">
-            实付：
-            <span class="total-price">
-              <span class="sym">¥</span>{{ money(order.payAmount) }}
-            </span>
+          <div class="order-foot-top">
+            <span class="order-time num">{{ order.createTime }}</span>
+            <div class="order-total">
+              实付
+              <span class="total-price">
+                <span class="sym">¥</span><span class="num">{{ money(order.payAmount) }}</span>
+              </span>
+            </div>
           </div>
-          <div class="order-time">{{ order.createTime }}</div>
           <div class="order-actions">
             <van-button
               v-if="order.orderStatus === 10"
@@ -111,8 +122,8 @@ function statusText(status) {
 }
 
 function statusColor(status) {
-  const map = { 10: '#FF2E93', 20: '#f57c00', 30: '#1677ff', 40: '#07c160', 5: '#999' }
-  return map[status] || '#999'
+  const map = { 10: '#ff2e93', 20: '#ffb020', 30: '#24e5ff', 40: '#34e39a', 5: '#6d7490' }
+  return map[status] || '#6d7490'
 }
 
 async function loadOrders() {
@@ -180,50 +191,66 @@ onMounted(loadOrders)
 
 <style scoped>
 .order-list-page {
-  background: #f5f5f5;
-  min-height: 100vh;
-  padding-bottom: 20px;
+  padding-bottom: 24px;
 }
 
 .order-list {
-  padding: 10px 12px;
+  padding: 14px var(--gutter) 0;
 }
 .order-card {
-  background: #fff;
-  border-radius: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
+  border-radius: var(--r-lg);
   overflow: hidden;
+  background-image: linear-gradient(158deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.015));
+  border: 1px solid var(--glass-line);
+  backdrop-filter: blur(var(--blur)) saturate(150%);
+  box-shadow: var(--shadow-card);
+  animation: riseIn 0.55s var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 65ms);
+  transition: transform var(--dur-fast) var(--ease-spring), border-color var(--dur-fast);
+}
+.order-card:active {
+  transform: scale(0.985);
+  border-color: rgba(255, 46, 147, 0.38);
 }
 .order-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 14px;
-  border-bottom: 1px solid #f5f5f5;
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--glass-line);
 }
 .order-no {
-  font-size: 12px;
-  color: #999;
+  font-size: 11px;
+  color: var(--text-3);
+  letter-spacing: 0.04em;
 }
+/* 状态标签：描边胶囊，颜色来自状态映射 */
 .order-status {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 2px 10px;
+  border: 1px solid;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .order-goods {
   display: flex;
-  gap: 10px;
-  padding: 10px 14px;
-  border-bottom: 1px solid #f5f5f5;
+  gap: 11px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--glass-line);
 }
 .order-goods:last-child {
   border-bottom: none;
 }
 .order-goods-img {
-  width: 64px;
-  height: 64px;
-  background: #fafafa;
-  border-radius: 8px;
+  width: 66px;
+  height: 66px;
+  border-radius: var(--r-sm);
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -241,55 +268,78 @@ onMounted(loadOrders)
 }
 .order-goods-name {
   font-size: 13px;
-  color: #222;
-  line-height: 1.4;
+  color: var(--text-1);
+  line-height: 1.42;
 }
 .order-goods-spec {
   font-size: 11px;
-  color: #999;
-  margin-top: 2px;
+  color: var(--text-3);
+  margin-top: 3px;
 }
 .order-goods-bottom {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 6px;
+  margin-top: 7px;
 }
 .order-goods-price {
-  color: #FF2E93;
+  display: flex;
+  align-items: baseline;
+  gap: 1px;
+  color: var(--neon);
   font-weight: 700;
-  font-size: 14px;
 }
-.order-goods-price .sym { font-size: 10px; }
+.order-goods-price .sym {
+  font-size: 10px;
+}
+.order-goods-price .num {
+  font-size: 15px;
+}
 .order-goods-qty {
   font-size: 12px;
-  color: #999;
+  color: var(--text-3);
 }
 
 .order-footer {
-  padding: 10px 14px;
+  padding: 11px 14px 13px;
+}
+.order-foot-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.order-time {
+  font-size: 10px;
+  color: var(--text-3);
+  letter-spacing: 0.02em;
 }
 .order-total {
-  text-align: right;
-  font-size: 12px;
-  color: #666;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text-3);
+  letter-spacing: 0.08em;
 }
 .total-price {
-  color: #FF2E93;
+  display: flex;
+  align-items: baseline;
+  gap: 1px;
+  color: var(--neon);
   font-weight: 700;
-  font-size: 15px;
 }
-.total-price .sym { font-size: 11px; }
-.order-time {
-  text-align: right;
+.total-price .sym {
   font-size: 11px;
-  color: #ccc;
-  margin-top: 2px;
+}
+.total-price .num {
+  font-size: 17px;
+  text-shadow: 0 0 14px rgba(255, 46, 147, 0.55);
 }
 .order-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 8px;
+  margin-top: 11px;
 }
 </style>

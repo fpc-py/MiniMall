@@ -1,5 +1,5 @@
 <template>
-  <div class="detail-page">
+  <div class="page detail-page">
     <!-- 顶部导航 -->
     <van-nav-bar
       :title="product?.name || '商品详情'"
@@ -23,48 +23,59 @@
 
     <template v-else>
       <!-- 商品图片轮播 -->
-      <van-swipe :autoplay="3000" indicator-color="#FF2E93" class="detail-swipe">
-        <van-swipe-item v-for="(img, i) in carouselImages" :key="i">
-          <div class="detail-swipe-item">
-            <img :src="img.url" class="detail-swipe-img" alt="" />
-          </div>
-        </van-swipe-item>
-        <van-swipe-item v-if="!carouselImages.length">
-          <div class="detail-swipe-item">
-            <van-icon name="photo-o" :size="64" color="#ccc" />
-          </div>
-        </van-swipe-item>
-      </van-swipe>
+      <section class="gallery">
+        <van-swipe :autoplay="3000" indicator-color="#ff2e93" class="detail-swipe">
+          <van-swipe-item v-for="(img, i) in carouselImages" :key="i">
+            <div class="detail-swipe-item">
+              <img :src="img.url" class="detail-swipe-img" alt="" />
+            </div>
+          </van-swipe-item>
+          <van-swipe-item v-if="!carouselImages.length">
+            <div class="detail-swipe-item">
+              <van-icon name="photo-o" :size="64" color="#6d7490" />
+            </div>
+          </van-swipe-item>
+        </van-swipe>
+        <div class="gallery-vignette" aria-hidden="true"></div>
+      </section>
 
       <!-- 商品信息 -->
-      <div class="info-section">
+      <section class="info-section rv" style="--i: 0">
+        <span class="eyebrow">PRODUCT</span>
         <div class="price-row">
           <span class="price-current">
             <span class="symbol">¥</span>
-            <span class="val">{{ displayPrice }}</span>
+            <span class="val num">{{ displayPrice }}</span>
           </span>
-          <span class="price-old" v-if="displayOldPrice">¥{{ displayOldPrice }}</span>
+          <span class="price-old num" v-if="displayOldPrice">¥{{ displayOldPrice }}</span>
           <span class="sales-badge">已售 {{ product.totalSales || 0 }}</span>
         </div>
         <h1 class="product-name">{{ product.name }}</h1>
         <div class="extra-row">
-          <span>运费：免运费</span>
-          <span v-if="product.brand">{{ product.brand }}</span>
+          <span class="extra-item">
+            <van-icon name="logistics" size="12" color="#24e5ff" />免运费
+          </span>
+          <span v-if="product.brand" class="extra-item">
+            <van-icon name="shield-o" size="12" color="#24e5ff" />{{ product.brand }}
+          </span>
         </div>
-      </div>
+      </section>
 
       <!-- 规格选择 -->
-      <div class="section-block" @click="openSku('cart')">
+      <section class="section-block rv" style="--i: 1" @click="openSku('cart')">
         <div class="section-row">
           <span class="section-label">已选</span>
           <span class="section-value">{{ selectedSkuLabel || '请选择规格' }}</span>
-          <van-icon name="arrow" color="#ccc" />
+          <van-icon name="arrow" color="#6d7490" />
         </div>
-      </div>
+      </section>
 
       <!-- 商品详情 -->
-      <div class="section-block">
-        <div class="section-title">商品详情</div>
+      <section class="section-block rv" style="--i: 2">
+        <div class="section-head">
+          <span class="eyebrow">DETAILS</span>
+          <span class="section-title">商品详情</span>
+        </div>
         <div class="desc-content">
           <div class="desc-subtitle" v-if="product.subtitle">{{ product.subtitle }}</div>
           <div class="desc-text" v-if="product.description" v-html="product.description"></div>
@@ -83,7 +94,7 @@
             image-size="60"
           />
         </div>
-      </div>
+      </section>
 
       <!-- SKU 选择弹窗 -->
       <van-action-sheet v-model:show="showSku" title="选择规格" round>
@@ -91,10 +102,12 @@
           <div class="sku-product-info">
             <div class="sku-img">
               <img v-if="currentSkuImage" :src="currentSkuImage" class="sku-img-el" alt="" />
-              <van-icon v-else name="photo-o" :size="48" color="#ccc" />
+              <van-icon v-else name="photo-o" :size="48" color="#6d7490" />
             </div>
             <div class="sku-price-info">
-              <div class="sku-price">¥{{ displayPrice }}</div>
+              <div class="sku-price">
+                <span class="sym">¥</span><span class="num">{{ displayPrice }}</span>
+              </div>
               <div class="sku-stock">库存 {{ displayStock }} 件</div>
             </div>
           </div>
@@ -123,11 +136,11 @@
       <!-- 底部操作栏 -->
       <div class="bottom-bar">
         <div class="bar-icon" @click="$router.push('/')">
-          <van-icon name="home-o" size="22" />
+          <van-icon name="wap-home-o" size="21" />
           <span>首页</span>
         </div>
         <div class="bar-icon" @click="$router.push('/cart')">
-          <van-icon name="cart-o" size="22" />
+          <van-icon name="cart-o" size="21" />
           <span>购物车</span>
         </div>
         <div class="bar-btn bar-btn-cart" @click="openSku('cart')">加入购物车</div>
@@ -268,157 +281,204 @@ onMounted(loadProduct)
 
 <style scoped>
 .detail-page {
-  background: #f5f5f5;
-  min-height: 100vh;
-  padding-bottom: 56px;
+  padding-bottom: 68px;
 }
 
 .error-wrap {
   padding-top: 40px;
 }
 
-/* 商品轮播 */
+/* ---------- 图集 ---------- */
+.gallery {
+  position: relative;
+}
 .detail-swipe {
-  height: 375px;
+  height: 380px;
 }
 .detail-swipe-item {
-  height: 375px;
+  height: 380px;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background: #fafafa;
+  background: var(--ink-800);
 }
 .detail-swipe-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
+/* 底部暗角，让下一屏的玻璃卡自然衔接 */
+.gallery-vignette {
+  position: absolute;
+  inset: auto 0 -1px 0;
+  height: 96px;
+  background: linear-gradient(180deg, transparent, rgba(5, 6, 11, 0.92));
+  pointer-events: none;
+}
 
-/* 信息区 */
+/* ---------- 信息区 ---------- */
 .info-section {
-  background: #fff;
-  padding: 14px 16px;
-  margin-bottom: 10px;
+  position: relative;
+  margin: -34px var(--gutter) 0;
+  padding: 18px 16px 16px;
+  border-radius: var(--r-lg);
+  background-image: linear-gradient(158deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--glass-line-2);
+  backdrop-filter: blur(var(--blur)) saturate(160%);
+  box-shadow: var(--shadow-card);
 }
 .price-row {
   display: flex;
   align-items: baseline;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 10px;
+  margin: 8px 0 10px;
 }
 .price-current {
-  color: #FF2E93;
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  color: var(--neon);
   font-weight: 700;
 }
 .price-current .symbol {
-  font-size: 14px;
+  font-size: 15px;
 }
 .price-current .val {
-  font-size: 28px;
+  font-size: 32px;
+  line-height: 1;
+  text-shadow: 0 0 22px rgba(255, 46, 147, 0.6);
 }
 .price-old {
   font-size: 13px;
-  color: #ccc;
+  color: var(--text-3);
   text-decoration: line-through;
 }
 .sales-badge {
   margin-left: auto;
-  font-size: 12px;
-  color: #999;
-  background: #f5f5f5;
-  padding: 2px 8px;
-  border-radius: 10px;
+  font-size: 11px;
+  color: var(--text-2);
+  background: var(--glass-2);
+  border: 1px solid var(--glass-line);
+  padding: 3px 10px;
+  border-radius: var(--r-pill);
 }
 .product-name {
-  font-size: 16px;
-  color: #222;
+  font-family: var(--font-display);
+  font-size: 17px;
+  color: var(--text-1);
   line-height: 1.5;
-  font-weight: 500;
-  margin-bottom: 8px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  margin-bottom: 10px;
 }
 .extra-row {
   display: flex;
-  gap: 16px;
-  font-size: 12px;
-  color: #999;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.extra-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-2);
+  padding: 3px 10px;
+  border-radius: var(--r-pill);
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
 }
 
-/* 通用区块 */
+/* ---------- 通用区块 ---------- */
 .section-block {
-  background: #fff;
+  margin: var(--sp-3) var(--gutter) 0;
   padding: 0 16px;
-  margin-bottom: 10px;
+  border-radius: var(--r-md);
+  background-image: linear-gradient(158deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.015));
+  border: 1px solid var(--glass-line);
+  backdrop-filter: blur(var(--blur)) saturate(150%);
+  box-shadow: var(--shadow-card);
 }
 .section-row {
   display: flex;
   align-items: center;
-  padding: 14px 0;
-  border-bottom: 1px solid #f5f5f5;
-}
-.section-block .section-row:last-child {
-  border-bottom: none;
+  padding: 15px 0;
 }
 .section-label {
-  font-size: 14px;
-  color: #666;
-  width: 70px;
+  font-size: 13px;
+  color: var(--text-3);
+  width: 62px;
   flex-shrink: 0;
+  letter-spacing: 0.06em;
 }
 .section-value {
   flex: 1;
   font-size: 14px;
-  color: #333;
+  color: var(--neon-soft);
   text-align: right;
   margin-right: 6px;
 }
+.section-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 0 12px;
+}
 .section-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: #333;
-  padding: 14px 0;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-1);
+  letter-spacing: 0.05em;
 }
 
-/* 详情 */
+/* ---------- 详情 ---------- */
 .desc-content {
-  padding-bottom: 14px;
+  padding-bottom: 16px;
 }
 .desc-subtitle {
   font-size: 13px;
-  color: #666;
-  margin-bottom: 6px;
+  color: var(--text-2);
+  margin-bottom: 8px;
 }
 .desc-text {
   font-size: 13px;
-  color: #333;
-  line-height: 1.6;
+  color: var(--text-2);
+  line-height: 1.7;
+}
+.desc-text :deep(img) {
+  max-width: 100%;
+  border-radius: var(--r-sm);
 }
 .desc-images {
-  margin-top: 8px;
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 .desc-img-el {
   width: 100%;
-  display: block;
-  border-radius: 8px;
-  margin-bottom: 8px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--glass-line);
 }
 
-/* SKU 弹窗 */
+/* ---------- SKU 弹窗 ---------- */
 .sku-panel {
-  padding: 16px;
-  max-height: 60vh;
+  padding: 16px var(--gutter) 12px;
+  max-height: 62vh;
   overflow-y: auto;
 }
 .sku-product-info {
   display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 14px;
+  margin-bottom: 18px;
 }
 .sku-img {
-  width: 80px;
-  height: 80px;
-  background: #fef0f5;
-  border-radius: 8px;
+  width: 84px;
+  height: 84px;
+  border-radius: var(--r-md);
+  background: var(--glass-2);
+  border: 1px solid var(--glass-line);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -436,23 +496,33 @@ onMounted(loadProduct)
   justify-content: center;
 }
 .sku-price {
-  color: #FF2E93;
-  font-size: 20px;
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  color: var(--neon);
   font-weight: 700;
+}
+.sku-price .sym {
+  font-size: 13px;
+}
+.sku-price .num {
+  font-size: 26px;
+  line-height: 1;
+  text-shadow: 0 0 18px rgba(255, 46, 147, 0.55);
 }
 .sku-stock {
   font-size: 12px;
-  color: #999;
-  margin-top: 4px;
+  color: var(--text-3);
+  margin-top: 8px;
 }
 .sku-group {
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 .sku-group-name {
-  font-size: 14px;
-  color: #333;
-  margin-bottom: 8px;
-  font-weight: 500;
+  font-size: 13px;
+  color: var(--text-2);
+  margin-bottom: 10px;
+  letter-spacing: 0.06em;
 }
 .sku-options {
   display: flex;
@@ -461,77 +531,86 @@ onMounted(loadProduct)
 }
 .sku-option {
   display: inline-block;
-  padding: 6px 16px;
-  border: 1px solid #eee;
-  border-radius: 20px;
+  padding: 7px 18px;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r-pill);
   font-size: 13px;
-  color: #333;
-  background: #fafafa;
+  color: var(--text-2);
+  background: var(--glass);
   cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-out);
 }
 .sku-option.active {
-  border-color: #FF2E93;
-  color: #FF2E93;
-  background: #fff5f8;
+  border-color: rgba(255, 46, 147, 0.7);
+  color: #fff;
+  background-image: linear-gradient(135deg, rgba(255, 46, 147, 0.9), rgba(139, 92, 255, 0.8));
+  box-shadow: var(--glow-neon);
 }
 .sku-option.disabled {
-  color: #ccc;
-  background: #f7f7f7;
+  color: var(--text-3);
+  background: rgba(255, 255, 255, 0.02);
   text-decoration: line-through;
 }
 .sku-quantity {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
+  margin-bottom: 22px;
 }
 .qty-label {
-  font-size: 14px;
-  color: #333;
+  font-size: 13px;
+  color: var(--text-2);
+  letter-spacing: 0.06em;
 }
 .sku-confirm {
-  padding-bottom: 20px;
+  padding-bottom: 14px;
 }
 
-/* 底部操作栏 */
+/* ---------- 底部操作栏 ---------- */
 .bottom-bar {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  height: 56px;
-  background: #fff;
+  height: 64px;
   display: flex;
   align-items: center;
-  padding: 0 12px;
+  padding: 0 var(--gutter);
   gap: 10px;
-  border-top: 1px solid #f0f0f0;
+  backdrop-filter: blur(var(--blur-lg)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--blur-lg)) saturate(160%);
+  background-image: linear-gradient(180deg, rgba(12, 14, 22, 0.72), rgba(8, 9, 15, 0.96));
+  box-shadow: var(--shadow-float);
   z-index: 99;
 }
 .bar-icon {
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 2px;
   font-size: 10px;
-  color: #666;
-  width: 44px;
+  color: var(--text-2);
+  width: 46px;
   flex-shrink: 0;
 }
 .bar-btn {
   flex: 1;
-  height: 40px;
-  line-height: 40px;
+  height: 42px;
+  line-height: 42px;
   text-align: center;
-  border-radius: 20px;
+  border-radius: var(--r-pill);
   font-size: 14px;
   font-weight: 600;
+  letter-spacing: 0.04em;
 }
 .bar-btn-cart {
-  background: #ffe8f0;
-  color: #FF2E93;
+  background: var(--glass-2);
+  border: 1px solid rgba(255, 46, 147, 0.5);
+  color: var(--neon-soft);
 }
 .bar-btn-buy {
-  background: linear-gradient(135deg, #FF2E93, #ff6b9d);
+  background-image: linear-gradient(135deg, var(--neon), #ff5ea8 55%, var(--violet));
   color: #fff;
+  box-shadow: var(--glow-neon);
 }
 </style>

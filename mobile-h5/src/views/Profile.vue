@@ -1,38 +1,39 @@
 <template>
-  <div class="profile-page">
+  <div class="page profile-page">
     <van-nav-bar title="个人中心" fixed placeholder />
 
     <!-- 会员头部 -->
-    <div class="profile-header">
+    <section class="profile-header rv" style="--i: 0">
       <van-skeleton v-if="loading" title avatar :row="2" style="padding: 16px" />
       <div v-else class="member-info">
         <div class="avatar">
+          <span class="avatar-ring" aria-hidden="true"></span>
           <img v-if="member.avatar" :src="member.avatar" class="avatar-el" alt="" />
-          <van-icon v-else name="user-o" size="32" color="#fff" />
+          <van-icon v-else name="user-o" size="30" color="#fff" />
         </div>
         <div class="member-detail">
           <div class="member-name">{{ member.nickname || member.username || '商城会员' }}</div>
-          <div class="member-phone">{{ member.phone || '-' }}</div>
+          <div class="member-phone num">{{ member.phone || '-' }}</div>
         </div>
         <div class="member-level">
-          <van-tag color="#fff" text-color="#FF2E93" round>Lv.{{ member.level || 0 }}</van-tag>
+          <span class="level-chip num">LV.{{ member.level || 0 }}</span>
         </div>
       </div>
       <div v-if="!loading" class="points-row">
         <span class="points-label">积分</span>
-        <span class="points-val">{{ member.points || 0 }}</span>
+        <span class="points-val num">{{ member.points || 0 }}</span>
       </div>
-    </div>
+    </section>
 
     <!-- 功能入口 -->
-    <van-cell-group inset class="menu-group">
+    <van-cell-group inset class="menu-group rv" style="--i: 1">
       <van-cell title="我的订单" icon="orders-o" is-link @click="go('/order/list')" />
       <van-cell title="我的优惠券" icon="coupon-o" is-link @click="go('/coupons')" />
       <van-cell title="收货地址" icon="location-o" is-link @click="go('/address')" />
       <van-cell title="退款 / 售后" icon="after-sale" is-link @click="go('/refund/list')" />
     </van-cell-group>
 
-    <div class="logout-section">
+    <div class="logout-section rv" style="--i: 2">
       <van-button block round plain type="danger" color="#999" @click="handleLogout">退出登录</van-button>
     </div>
   </div>
@@ -84,75 +85,125 @@ onMounted(loadMember)
 
 <style scoped>
 .profile-page {
-  background: #f5f5f5;
-  min-height: 100vh;
-  padding-bottom: 30px;
+  padding-bottom: 34px;
 }
 
+/* ---------- 会员卡片 ---------- */
 .profile-header {
-  background: linear-gradient(135deg, #FF2E93, #ff6b9d);
-  color: #fff;
-  padding: 16px;
+  position: relative;
+  margin: 0 var(--gutter);
+  padding: 20px 18px 18px;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  background-image:
+    radial-gradient(120% 140% at 0% 0%, rgba(255, 46, 147, 0.34), transparent 58%),
+    linear-gradient(158deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.02));
+  border: 1px solid var(--glass-line-2);
+  backdrop-filter: blur(var(--blur)) saturate(160%);
+  box-shadow: var(--shadow-card);
+  animation: riseIn 0.6s var(--ease-out) both;
 }
 .member-info {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 13px;
 }
 .avatar {
-  width: 56px;
-  height: 56px;
+  position: relative;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.25);
+  background: var(--glass-2);
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
   flex-shrink: 0;
+  border: 1px solid var(--glass-line-2);
+}
+/* 头像外圈霓虹光环 */
+.avatar-ring {
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  background: conic-gradient(from 140deg, var(--neon), var(--cyan), var(--violet), var(--neon));
+  opacity: 0.85;
+  filter: blur(6px);
+  z-index: 0;
 }
 .avatar-el {
+  position: relative;
+  z-index: 1;
   width: 100%;
   height: 100%;
+  border-radius: 50%;
   object-fit: cover;
+}
+.avatar .van-icon {
+  position: relative;
+  z-index: 1;
 }
 .member-detail {
   flex: 1;
   min-width: 0;
 }
 .member-name {
-  font-size: 18px;
+  font-family: var(--font-display);
+  font-size: 19px;
   font-weight: 700;
+  color: var(--text-1);
+  letter-spacing: 0.02em;
 }
 .member-phone {
-  font-size: 13px;
-  opacity: 0.9;
-  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-3);
+  margin-top: 5px;
+  letter-spacing: 0.04em;
 }
 .member-level {
   flex-shrink: 0;
 }
+.level-chip {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #fff;
+  padding: 4px 11px;
+  border-radius: var(--r-pill);
+  background-image: linear-gradient(135deg, var(--neon), var(--violet));
+  box-shadow: var(--glow-neon);
+}
 .points-row {
   display: flex;
   align-items: baseline;
-  gap: 6px;
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.25);
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--glass-line);
 }
 .points-label {
-  font-size: 13px;
-  opacity: 0.9;
+  font-size: 11px;
+  color: var(--text-3);
+  letter-spacing: 0.18em;
 }
 .points-val {
-  font-size: 20px;
+  font-family: var(--font-display);
+  font-size: 24px;
   font-weight: 700;
+  color: var(--cyan);
+  text-shadow: 0 0 20px rgba(36, 229, 255, 0.55);
 }
 
+/* ---------- 菜单 ---------- */
 .menu-group {
-  margin-top: 12px;
+  margin-top: var(--sp-3);
+}
+.menu-group :deep(.van-cell__left-icon) {
+  color: var(--neon-soft);
+  font-size: 18px;
 }
 
 .logout-section {
-  padding: 24px 16px 0;
+  padding: 26px var(--gutter) 0;
 }
 </style>

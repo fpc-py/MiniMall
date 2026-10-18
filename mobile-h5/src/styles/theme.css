@@ -1,0 +1,491 @@
+/* ============================================================
+   Mall H5 · 设计语言：暗夜霓虹 + 玻璃拟态
+   - 深空底色 + 霓虹粉/青高光 + 毛玻璃层 + 发光层级
+   - 全部设计令牌集中于此，业务样式只引用令牌，禁止硬编码色值
+   ============================================================ */
+
+:root {
+  /* ---- 底色（深空分层） ---- */
+  --ink-900: #05060b;
+  --ink-800: #0a0c14;
+  --ink-700: #10131d;
+  --ink-600: #191d2a;
+
+  /* ---- 霓虹主色 / 副色 ---- */
+  --neon: #ff2e93;
+  --neon-soft: #ff74b6;
+  --neon-deep: #c9056f;
+  --cyan: #24e5ff;
+  --cyan-soft: #7cf2ff;
+  --violet: #8b5cff;
+
+  /* ---- 语义色 ---- */
+  --ok: #34e39a;
+  --warn: #ffb020;
+  --danger: #ff4d6d;
+  --info: #4d9bff;
+
+  /* ---- 文本层级 ---- */
+  --text-1: #eef1ff;
+  --text-2: #a5abc7;
+  --text-3: #6d7490;
+
+  /* ---- 玻璃拟态 ---- */
+  --glass: rgba(255, 255, 255, 0.045);
+  --glass-2: rgba(255, 255, 255, 0.075);
+  --glass-3: rgba(255, 255, 255, 0.1);
+  --glass-line: rgba(255, 255, 255, 0.1);
+  --glass-line-2: rgba(255, 255, 255, 0.18);
+  --blur: 18px;
+  --blur-lg: 30px;
+
+  /* ---- 发光 ---- */
+  --glow-neon: 0 10px 40px -14px rgba(255, 46, 147, 0.75);
+  --glow-cyan: 0 10px 40px -16px rgba(36, 229, 255, 0.6);
+  --shadow-card: 0 22px 48px -28px rgba(0, 0, 0, 0.95), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --shadow-float: 0 -14px 40px -20px rgba(0, 0, 0, 0.9);
+
+  /* ---- 圆角 ---- */
+  --r-xs: 8px;
+  --r-sm: 12px;
+  --r-md: 18px;
+  --r-lg: 24px;
+  --r-xl: 32px;
+  --r-pill: 999px;
+
+  /* ---- 间距 ---- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 26px;
+  --gutter: 14px;
+
+  /* ---- 字体：屏蔽 Inter/Roboto/Arial，走几何感 DIN 系 ---- */
+  --font-sans: "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei UI", "Source Han Sans SC",
+    "Noto Sans SC", "Hiragino Sans GB", sans-serif;
+  --font-display: "Bahnschrift SemiBold", "Bahnschrift", "DIN Alternate", "Avenir Next",
+    "PingFang SC", sans-serif;
+  --font-num: "DIN Alternate", "Bahnschrift", "Avenir Next Condensed", "Helvetica Neue",
+    "PingFang SC", sans-serif;
+
+  /* ---- 动效 ---- */
+  --ease-out: cubic-bezier(0.16, 0.84, 0.44, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --dur-fast: 0.22s;
+  --dur: 0.42s;
+  --dur-slow: 0.62s;
+
+  /* ---- Vant 设计令牌覆盖（暗色 + 玻璃） ---- */
+  --van-primary-color: var(--neon);
+  --van-success-color: var(--ok);
+  --van-danger-color: var(--danger);
+  --van-warning-color: var(--warn);
+  --van-background: transparent;
+  --van-background-2: transparent;
+  --van-background-3: transparent;
+  --van-text-color: var(--text-1);
+  --van-text-color-2: var(--text-2);
+  --van-text-color-3: var(--text-3);
+  --van-border-color: var(--glass-line);
+  --van-active-color: rgba(255, 255, 255, 0.06);
+  --van-radius-md: var(--r-md);
+  --van-radius-lg: var(--r-lg);
+  --van-font-size-md: 14px;
+
+  /* NavBar */
+  --van-nav-bar-background: transparent;
+  --van-nav-bar-title-text-color: var(--text-1);
+  --van-nav-bar-title-font-size: 16px;
+  --van-nav-bar-icon-color: var(--text-1);
+  --van-nav-bar-text-color: var(--neon-soft);
+  --van-nav-bar-height: 46px;
+
+  /* Tabbar */
+  --van-tabbar-background: transparent;
+  --van-tabbar-item-text-color: var(--text-3);
+  --van-tabbar-item-active-color: var(--neon);
+  --van-tabbar-item-active-background: transparent;
+  --van-tabbar-item-font-size: 11px;
+  --van-tabbar-height: 58px;
+
+  /* Tabs */
+  --van-tabs-default-color: var(--neon);
+  --van-tabs-nav-background: transparent;
+  --van-tab-text-color: var(--text-2);
+  --van-tab-active-text-color: var(--text-1);
+  --van-tab-disabled-text-color: var(--text-3);
+  --van-tabs-bottom-bar-color: var(--neon);
+  --van-tabs-line-height: 44px;
+
+  /* Cell / CellGroup */
+  --van-cell-background: transparent;
+  --van-cell-text-color: var(--text-1);
+  --van-cell-value-color: var(--text-2);
+  --van-cell-label-color: var(--text-2);
+  --van-cell-border-color: var(--glass-line);
+  --van-cell-group-background: transparent;
+  --van-cell-group-title-color: var(--text-3);
+  --van-cell-group-inset-radius: var(--r-md);
+  --van-cell-font-size: 14px;
+  --van-cell-vertical-padding: 12px;
+  --van-cell-horizontal-padding: 16px;
+
+  /* Field / Search */
+  --van-field-label-color: var(--text-2);
+  --van-field-input-text-color: var(--text-1);
+  --van-field-placeholder-text-color: var(--text-3);
+  --van-field-error-message-color: var(--danger);
+  --van-search-background: transparent;
+  --van-search-content-background: var(--glass);
+  --van-search-placeholder-color: var(--text-3);
+
+  /* Button */
+  --van-button-primary-background: var(--neon);
+  --van-button-primary-border-color: var(--neon);
+  --van-button-primary-color: #fff;
+  --van-button-danger-background: var(--neon);
+  --van-button-danger-border-color: var(--neon);
+  --van-button-default-background: var(--glass);
+  --van-button-default-border-color: var(--glass-line-2);
+  --van-button-default-color: var(--text-1);
+  --van-button-border-radius: var(--r-pill);
+
+  /* Popup / ActionSheet / Dialog / Overlay / Toast */
+  --van-popup-background: var(--ink-700);
+  --van-popup-round-radius: var(--r-lg);
+  --van-action-sheet-header-font-size: 15px;
+  --van-overlay-background: rgba(4, 5, 10, 0.72);
+  --van-dialog-background: var(--ink-700);
+  --van-dialog-header-font-weight: 600;
+  --van-dialog-message-color: var(--text-2);
+  --van-toast-background: rgba(16, 19, 29, 0.92);
+  --van-toast-text-color: var(--text-1);
+  --van-loading-spinner-color: var(--neon);
+
+  /* 其他 */
+  --van-empty-description-color: var(--text-3);
+  --van-tag-default-color: var(--glass-2);
+  --van-tag-text-color: var(--text-1);
+  --van-stepper-background: var(--glass-2);
+  --van-stepper-button-icon-color: var(--text-1);
+  --van-stepper-input-text-color: var(--text-1);
+  --van-stepper-input-background: transparent;
+  --van-skeleton-animation-duration: 1.6s;
+  --van-swipe-indicator-color: rgba(255, 255, 255, 0.28);
+}
+
+/* ============================================================
+   全局基底
+   ============================================================ */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  color: var(--text-1);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+  /* 深空 + 三团霓虹辉光，构成"暗夜"氛围 */
+  background-color: var(--ink-900);
+  background-image:
+    radial-gradient(900px 520px at 8% -6%, rgba(255, 46, 147, 0.22), transparent 62%),
+    radial-gradient(760px 460px at 100% 2%, rgba(36, 229, 255, 0.16), transparent 60%),
+    radial-gradient(900px 780px at 46% 112%, rgba(139, 92, 255, 0.2), transparent 64%);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* 细颗粒噪点，压住纯色的塑料感 */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+#app,
+.van-config-provider {
+  min-height: 100vh;
+  background: transparent;
+}
+
+img {
+  display: block;
+}
+
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+/* ============================================================
+   通用玻璃卡片
+   ============================================================ */
+.glass {
+  position: relative;
+  background-image: linear-gradient(158deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.022));
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r-md);
+  backdrop-filter: blur(var(--blur)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(150%);
+  box-shadow: var(--shadow-card);
+}
+
+/* 卡片顶部的一道霓虹高光，玻璃拟态的关键细节 */
+.glass::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.neon-edge {
+  border: 1px solid rgba(255, 46, 147, 0.45);
+  box-shadow: var(--glow-neon);
+}
+
+/* 区块眉标：大写拉丁 + 宽字距，制造编辑感 */
+.eyebrow {
+  font-family: var(--font-num);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.num {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+/* ============================================================
+   编排式入场动效（用 --i 控制逐项延迟）
+   ============================================================ */
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 16px, 0) scale(0.982);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes glowPulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+
+@keyframes sheen {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(220%);
+  }
+}
+
+@keyframes floatY {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.rv {
+  animation: riseIn var(--dur-slow) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 62ms);
+}
+
+.rv-fade {
+  animation: fadeIn var(--dur-slow) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 62ms);
+}
+
+/* 页面级入场：所有页面根容器统一使用 */
+.page {
+  min-height: 100vh;
+  background: transparent;
+  animation: fadeIn 0.4s var(--ease-out) both;
+}
+
+/* ============================================================
+   Vant 组件适配（毛玻璃化）
+   ============================================================ */
+
+/* 导航栏：悬浮毛玻璃 + 底部霓虹渐隐细线 */
+.van-nav-bar {
+  backdrop-filter: blur(var(--blur-lg)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--blur-lg)) saturate(150%);
+  background-image: linear-gradient(180deg, rgba(10, 12, 20, 0.86), rgba(10, 12, 20, 0.62)) !important;
+}
+.van-nav-bar::after {
+  border-bottom: 1px solid var(--glass-line) !important;
+}
+.van-nav-bar__title {
+  font-family: var(--font-display);
+  letter-spacing: 0.04em;
+}
+
+/* 底部 TabBar：毛玻璃浮动条 */
+.van-tabbar {
+  backdrop-filter: blur(var(--blur-lg)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--blur-lg)) saturate(160%);
+  background-image: linear-gradient(180deg, rgba(12, 14, 22, 0.72), rgba(8, 9, 15, 0.94)) !important;
+}
+.van-tabbar::after {
+  border-top: 1px solid var(--glass-line) !important;
+}
+.van-tabbar-item--active .van-tabbar-item__icon {
+  filter: drop-shadow(0 0 8px rgba(255, 46, 147, 0.9));
+}
+.van-tabbar-item__icon {
+  transition: transform var(--dur-fast) var(--ease-spring);
+}
+.van-tabbar-item--active .van-tabbar-item__icon {
+  transform: translateY(-2px) scale(1.08);
+}
+
+/* Tab 标签：霓虹下划线 */
+.van-tabs__nav {
+  background: transparent !important;
+}
+.van-tabs__line {
+  background: linear-gradient(90deg, var(--neon), var(--cyan));
+  box-shadow: 0 0 12px rgba(255, 46, 147, 0.8);
+  border-radius: var(--r-pill);
+}
+.van-tab {
+  font-family: var(--font-display);
+}
+
+/* 单元格分组：内嵌玻璃卡 */
+.van-cell-group--inset {
+  overflow: hidden;
+  border: 1px solid var(--glass-line);
+  background-image: linear-gradient(158deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
+  backdrop-filter: blur(var(--blur)) saturate(150%);
+  box-shadow: var(--shadow-card);
+}
+.van-cell::after {
+  border-bottom-color: var(--glass-line) !important;
+}
+.van-cell__title {
+  font-weight: 500;
+}
+
+/* 搜索框 */
+.van-search {
+  padding: 10px var(--gutter) !important;
+}
+.van-search__content {
+  border: 1px solid var(--glass-line);
+  backdrop-filter: blur(var(--blur));
+}
+
+/* 弹窗 / 动作面板 */
+.van-popup {
+  backdrop-filter: blur(var(--blur-lg));
+  border-top: 1px solid var(--glass-line-2);
+}
+.van-action-sheet__header {
+  color: var(--text-1);
+  font-family: var(--font-display);
+}
+.van-action-sheet__header::after {
+  border-bottom: 1px solid var(--glass-line) !important;
+}
+.van-dialog {
+  border: 1px solid var(--glass-line-2);
+  box-shadow: var(--glow-neon);
+}
+
+/* 按钮统一发光质感 */
+.van-button--danger,
+.van-button--primary {
+  background-image: linear-gradient(135deg, var(--neon), #ff5ea8 55%, var(--violet)) !important;
+  border: none !important;
+  box-shadow: var(--glow-neon);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.van-button--default {
+  backdrop-filter: blur(var(--blur));
+}
+.van-button--plain.van-button--danger {
+  background-image: none !important;
+  box-shadow: none;
+  border: 1px solid rgba(255, 46, 147, 0.5) !important;
+  color: var(--neon-soft);
+}
+
+/* 空状态 / 骨架屏 */
+.van-empty__description {
+  color: var(--text-3);
+  font-size: 13px;
+}
+.van-skeleton__title,
+.van-skeleton__avatar,
+.van-skeleton__row {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.06)) !important;
+  background-size: 200% 100% !important;
+}
+
+/* 数量步进器 */
+.van-stepper__minus,
+.van-stepper__plus {
+  border: 1px solid var(--glass-line) !important;
+}
+
+/* 开关 */
+.van-switch {
+  background: var(--glass-3);
+}
+
+/* 标签 */
+.van-tag--plain {
+  color: var(--neon-soft);
+  border-color: rgba(255, 46, 147, 0.5);
+}
