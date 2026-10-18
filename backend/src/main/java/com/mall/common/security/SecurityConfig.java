@@ -3,6 +3,7 @@ package com.mall.common.security;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mall.common.ErrorCode;
 import com.mall.common.R;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -64,6 +65,9 @@ public class SecurityConfig {
             .logout(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                // SSE 流式响应结束时容器会发起 ASYNC 派发，此时 JWT 过滤器不参与（OncePerRequestFilter 默认跳过 ASYNC），
+                // 若不放行会导致已提交的响应被重新判定为 403 并中断连接（前端表现为 ERR_ABORTED）。
+                .dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers(PUBLIC_URLS).permitAll()
                 .requestMatchers(HttpMethod.GET, PUBLIC_GET_URLS).permitAll()
