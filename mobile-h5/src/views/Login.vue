@@ -46,6 +46,10 @@
         </van-field>
       </van-cell-group>
 
+      <p v-if="devCode" class="dev-code-hint">
+        开发模式验证码：<b>{{ devCode }}</b>（60 秒内有效）
+      </p>
+
       <div class="login-btn-section">
         <van-button
           round
@@ -81,6 +85,8 @@ const loading = ref(false)
 
 const counting = ref(false)
 const countdown = ref(60)
+// 开发模式回显的验证码（后端 mall.sms.mock-enabled=true 时返回，生产为 null）
+const devCode = ref('')
 let timer = null
 
 function startCountdown() {
@@ -102,8 +108,9 @@ async function handleSendCode() {
     return
   }
   try {
-    await sendSmsCode(phone.value)
-    showToast('验证码已发送')
+    const res = await sendSmsCode(phone.value)
+    devCode.value = (res.data || {}).devCode || ''
+    showToast(devCode.value ? '验证码已发送' : '验证码已发送，请查收短信')
     startCountdown()
   } catch (e) {
     showToast(e.message || '发送失败')
@@ -195,6 +202,24 @@ onUnmounted(() => {
 }
 .login-btn-section {
   padding: 26px var(--gutter) 0;
+}
+.dev-code-hint {
+  margin: 14px var(--gutter) 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 12px;
+  color: var(--text-2);
+  text-align: center;
+  letter-spacing: 0.04em;
+  background: rgba(255, 46, 147, 0.08);
+  border: 1px dashed rgba(255, 46, 147, 0.32);
+}
+.dev-code-hint b {
+  color: var(--neon);
+  font-family: var(--font-display);
+  font-size: 15px;
+  letter-spacing: 0.12em;
+  text-shadow: 0 0 16px rgba(255, 46, 147, 0.5);
 }
 .login-hint {
   text-align: center;
