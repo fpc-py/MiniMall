@@ -28,6 +28,28 @@
 
 ---
 
+## 🖼️ 界面预览
+
+### C 端移动端 H5
+
+| 首页 | 商品详情 | 我的订单 | 智能客服 |
+|---|---|---|---|
+| <img src="docs/images/mall.png" width="180" /> | <img src="docs/images/detail.png" width="180" /> | <img src="docs/images/order.png" width="180" /> | <img src="docs/images/agent.png" width="180" /> |
+
+### B 端管理后台
+
+平台端与商家端共用同一入口，登录后按账号角色动态渲染菜单。
+
+**平台端 · 仪表盘**
+
+<img src="docs/images/admin.png" width="820" />
+
+**商家端 · 店铺概览**
+
+<img src="docs/images/merchant.png" width="820" />
+
+---
+
 ## ✨ 功能概览
 
 | 端 | 入口 | 主要能力 |
