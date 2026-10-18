@@ -58,3 +58,6 @@ logs/
 
 # ===== 编辑器备份文件 =====
 *~
+AGENTS.md
+.codex
+.trae
