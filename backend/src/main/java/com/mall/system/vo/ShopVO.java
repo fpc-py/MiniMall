@@ -20,6 +20,9 @@ public class ShopVO {
     @Schema(description = "店铺 Logo")
     private String logo;
 
+    @Schema(description = "店铺简介")
+    private String description;
+
     @Schema(description = "联系人姓名")
     private String contactName;
 

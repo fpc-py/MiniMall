@@ -2,219 +2,268 @@
   <div class="detail-page">
     <!-- 顶部导航 -->
     <van-nav-bar
-      :title="title"
+      :title="product?.name || '商品详情'"
       left-arrow
       fixed
       placeholder
       @click-left="$router.back()"
     />
 
-    <!-- 商品图片轮播 -->
-    <van-swipe
-      :autoplay="3000"
-      indicator-color="#FF2E93"
-      class="detail-swipe"
-    >
-      <van-swipe-item v-for="(img, i) in product.images" :key="i">
-        <div class="detail-swipe-item" :style="{ background: img.bg }">
-          <van-icon :name="img.icon" :size="64" :color="img.color" />
-        </div>
-      </van-swipe-item>
-    </van-swipe>
+    <van-skeleton v-if="loading" title :row="6" style="padding: 16px" />
 
-    <!-- 商品信息 -->
-    <div class="info-section">
-      <div class="price-row">
-        <span class="price-current">
-          <span class="symbol">¥</span>
-          <span class="val">{{ product.price }}</span>
-        </span>
-        <span class="price-old">¥{{ product.oldPrice }}</span>
-        <span class="sales-badge">已售 {{ product.sales }}</span>
-      </div>
-      <h1 class="product-name">{{ product.name }}</h1>
-      <div class="extra-row">
-        <span>运费：免运费</span>
-        <span>{{ product.location }}</span>
-      </div>
+    <!-- 加载失败 -->
+    <div v-else-if="error" class="error-wrap">
+      <van-empty description="商品加载失败">
+        <van-button round type="danger" color="#FF2E93" size="small" @click="loadProduct">重新加载</van-button>
+      </van-empty>
     </div>
 
-    <!-- 规格选择 -->
-    <div class="section-block" @click="showSku = true">
-      <div class="section-row">
-        <span class="section-label">已选</span>
-        <span class="section-value">{{ selectedSku || '请选择规格' }}</span>
-        <van-icon name="arrow" color="#ccc" />
-      </div>
-    </div>
+    <!-- 商品不存在 -->
+    <van-empty v-else-if="!product" description="商品不存在" />
 
-    <!-- 商品评价 -->
-    <div class="section-block">
-      <div class="section-row" @click="showReviews = true">
-        <span class="section-label">商品评价</span>
-        <span class="section-value">查看全部 {{ product.reviewCount }} 条</span>
-        <van-icon name="arrow" color="#ccc" />
-      </div>
-      <div class="review-preview" v-if="product.reviews && product.reviews.length">
-        <div class="review-item" v-for="(r, i) in product.reviews.slice(0, 2)" :key="i">
-          <div class="review-user">
-            <span class="review-name">{{ r.user }}</span>
-            <span class="review-time">{{ r.time }}</span>
+    <template v-else>
+      <!-- 商品图片轮播 -->
+      <van-swipe :autoplay="3000" indicator-color="#FF2E93" class="detail-swipe">
+        <van-swipe-item v-for="(img, i) in carouselImages" :key="i">
+          <div class="detail-swipe-item">
+            <img :src="img.url" class="detail-swipe-img" alt="" />
           </div>
-          <div class="review-content">{{ r.content }}</div>
-        </div>
-      </div>
-    </div>
+        </van-swipe-item>
+        <van-swipe-item v-if="!carouselImages.length">
+          <div class="detail-swipe-item">
+            <van-icon name="photo-o" :size="64" color="#ccc" />
+          </div>
+        </van-swipe-item>
+      </van-swipe>
 
-    <!-- 商品详情 -->
-    <div class="section-block">
-      <div class="section-title">商品详情</div>
-      <div class="desc-content">
-        <div
-          class="desc-img"
-          v-for="(desc, i) in product.description"
-          :key="i"
-          :style="{ background: desc.bg }"
-        >
-          <van-icon :name="desc.icon" :size="40" :color="desc.color" />
+      <!-- 商品信息 -->
+      <div class="info-section">
+        <div class="price-row">
+          <span class="price-current">
+            <span class="symbol">¥</span>
+            <span class="val">{{ displayPrice }}</span>
+          </span>
+          <span class="price-old" v-if="displayOldPrice">¥{{ displayOldPrice }}</span>
+          <span class="sales-badge">已售 {{ product.totalSales || 0 }}</span>
+        </div>
+        <h1 class="product-name">{{ product.name }}</h1>
+        <div class="extra-row">
+          <span>运费：免运费</span>
+          <span v-if="product.brand">{{ product.brand }}</span>
         </div>
       </div>
-    </div>
 
-    <!-- SKU 选择弹窗 -->
-    <van-action-sheet v-model:show="showSku" title="选择规格" round>
-      <div class="sku-panel">
-        <div class="sku-product-info">
-          <div class="sku-img">
-            <van-icon :name="product.images[0]?.icon || 'photo-o'" :size="48" color="#FF2E93" />
-          </div>
-          <div class="sku-price-info">
-            <div class="sku-price">¥{{ product.price }}</div>
-            <div class="sku-stock">库存 {{ product.stock }} 件</div>
-          </div>
-        </div>
-        <div class="sku-group" v-for="(spec, si) in product.specs" :key="si">
-          <div class="sku-group-name">{{ spec.name }}</div>
-          <div class="sku-options">
-            <span
-              v-for="(opt, oi) in spec.options"
-              :key="oi"
-              class="sku-option"
-              :class="{ active: spec.selected === oi }"
-              @click="spec.selected = oi; updateSku()"
-            >{{ opt }}</span>
-          </div>
-        </div>
-        <div class="sku-quantity">
-          <span class="qty-label">数量</span>
-          <van-stepper v-model="quantity" :min="1" :max="product.stock" />
-        </div>
-        <div class="sku-confirm">
-          <van-button type="danger" block round @click="confirmSku">确定</van-button>
+      <!-- 规格选择 -->
+      <div class="section-block" @click="openSku('cart')">
+        <div class="section-row">
+          <span class="section-label">已选</span>
+          <span class="section-value">{{ selectedSkuLabel || '请选择规格' }}</span>
+          <van-icon name="arrow" color="#ccc" />
         </div>
       </div>
-    </van-action-sheet>
 
-    <!-- 评价弹窗 -->
-    <van-action-sheet v-model:show="showReviews" title="商品评价" round>
-      <div class="review-panel">
-        <div class="review-full-item" v-for="(r, i) in product.reviews" :key="i">
-          <div class="review-user">
-            <span class="review-name">{{ r.user }}</span>
-            <span class="review-time">{{ r.time }}</span>
+      <!-- 商品详情 -->
+      <div class="section-block">
+        <div class="section-title">商品详情</div>
+        <div class="desc-content">
+          <div class="desc-subtitle" v-if="product.subtitle">{{ product.subtitle }}</div>
+          <div class="desc-text" v-if="product.description" v-html="product.description"></div>
+          <div class="desc-images" v-if="detailImages.length">
+            <img
+              v-for="(img, i) in detailImages"
+              :key="i"
+              :src="img.url"
+              class="desc-img-el"
+              alt=""
+            />
           </div>
-          <div class="review-content">{{ r.content }}</div>
+          <van-empty
+            v-if="!product.subtitle && !product.description && !detailImages.length"
+            description="暂无商品详情"
+            image-size="60"
+          />
         </div>
-        <van-empty v-if="!product.reviews?.length" description="暂无评价" />
       </div>
-    </van-action-sheet>
 
-    <!-- 底部操作栏 -->
-    <div class="bottom-bar">
-      <div class="bar-icon" @click="$router.push('/')">
-        <van-icon name="home-o" size="22" />
-        <span>首页</span>
+      <!-- SKU 选择弹窗 -->
+      <van-action-sheet v-model:show="showSku" title="选择规格" round>
+        <div class="sku-panel">
+          <div class="sku-product-info">
+            <div class="sku-img">
+              <img v-if="currentSkuImage" :src="currentSkuImage" class="sku-img-el" alt="" />
+              <van-icon v-else name="photo-o" :size="48" color="#ccc" />
+            </div>
+            <div class="sku-price-info">
+              <div class="sku-price">¥{{ displayPrice }}</div>
+              <div class="sku-stock">库存 {{ displayStock }} 件</div>
+            </div>
+          </div>
+          <div class="sku-group">
+            <div class="sku-group-name">选择规格</div>
+            <div class="sku-options">
+              <span
+                v-for="sku in product.skus"
+                :key="sku.id"
+                class="sku-option"
+                :class="{ active: sku.id === selectedSkuId, disabled: (sku.stock || 0) <= 0 }"
+                @click="selectSku(sku)"
+              >{{ skuLabel(sku) }}</span>
+            </div>
+          </div>
+          <div class="sku-quantity">
+            <span class="qty-label">数量</span>
+            <van-stepper v-model="quantity" :min="1" :max="displayStock || 1" />
+          </div>
+          <div class="sku-confirm">
+            <van-button type="danger" color="#FF2E93" block round @click="confirmSku">确定</van-button>
+          </div>
+        </div>
+      </van-action-sheet>
+
+      <!-- 底部操作栏 -->
+      <div class="bottom-bar">
+        <div class="bar-icon" @click="$router.push('/')">
+          <van-icon name="home-o" size="22" />
+          <span>首页</span>
+        </div>
+        <div class="bar-icon" @click="$router.push('/cart')">
+          <van-icon name="cart-o" size="22" />
+          <span>购物车</span>
+        </div>
+        <div class="bar-btn bar-btn-cart" @click="openSku('cart')">加入购物车</div>
+        <div class="bar-btn bar-btn-buy" @click="openSku('buy')">立即购买</div>
       </div>
-      <div class="bar-icon" @click="$router.push('/cart')">
-        <van-icon name="cart-o" size="22" />
-        <span>购物车</span>
-      </div>
-      <div class="bar-btn bar-btn-cart" @click="showSku = true">加入购物车</div>
-      <div class="bar-btn bar-btn-buy" @click="handleBuy">立即购买</div>
-    </div>
+    </template>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showToast } from 'vant'
+import { getProductDetail } from '@/api/product'
+import { addToCart } from '@/api/cart'
+import { isLoggedIn } from '@/utils/auth'
 
 const route = useRoute()
 const router = useRouter()
-const title = ref('商品详情')
+
+const loading = ref(true)
+const error = ref(false)
+const product = ref(null)
+
 const showSku = ref(false)
-const showReviews = ref(false)
-const selectedSku = ref('')
+const skuMode = ref('cart')
+const selectedSkuId = ref(null)
 const quantity = ref(1)
 
-// 模拟商品数据
-const product = reactive({
-  id: route.params.id || 1,
-  name: '旗舰智能手机 5G全网通 高清拍照 长续航 12GB+256GB 超强性能',
-  price: '3999',
-  oldPrice: '5999',
-  sales: '1.2万',
-  stock: 998,
-  location: '广东深圳',
-  reviewCount: 286,
-  images: [
-    { icon: 'phone-o', color: '#FF2E93', bg: 'linear-gradient(135deg, #fff5f5 0%, #ffe8f0 100%)' },
-    { icon: 'photo-o', color: '#667eea', bg: 'linear-gradient(135deg, #f5f0ff 0%, #e8e0ff 100%)' },
-    { icon: 'fire-o', color: '#f5576c', bg: 'linear-gradient(135deg, #fff5f0 0%, #ffe0e0 100%)' },
-  ],
-  specs: [
-    {
-      name: '颜色',
-      selected: 0,
-      options: ['曜石黑', '陶瓷白', '渐变蓝'],
-    },
-    {
-      name: '内存',
-      selected: 0,
-      options: ['8GB+128GB', '12GB+256GB', '16GB+512GB'],
-    },
-  ],
-  reviews: [
-    { user: '小***明', time: '2026-09-10', content: '手机很好用，拍照清晰，运行流畅，电池耐用，性价比很高！' },
-    { user: '购***家', time: '2026-09-08', content: '第二次购买了，给家人买的，质量一如既往的好，物流也快。' },
-    { user: '数***迷', time: '2026-09-05', content: '外观漂亮，手感很好，系统流畅不卡顿，推荐购买！' },
-  ],
-  description: [
-    { icon: 'photo-o', color: '#FF2E93', bg: '#fff5f5' },
-    { icon: 'more-o', color: '#667eea', bg: '#f5f0ff' },
-    { icon: 'fire-o', color: '#43e97b', bg: '#f0fff5' },
-  ],
+const carouselImages = computed(() => {
+  const imgs = (product.value?.images || []).filter((i) => i.type === 0)
+  if (imgs.length) return imgs
+  if (product.value?.mainImage) return [{ url: product.value.mainImage }]
+  return []
 })
 
-function updateSku() {
-  const selections = product.specs.map(s => s.options[s.selected]).join(' / ')
-  selectedSku.value = selections
+const detailImages = computed(() => (product.value?.images || []).filter((i) => i.type === 1))
+
+const currentSku = computed(() => {
+  return (product.value?.skus || []).find((s) => s.id === selectedSkuId.value) || null
+})
+
+const displayPrice = computed(() => {
+  if (currentSku.value?.price != null) return Number(currentSku.value.price).toFixed(2)
+  if (product.value?.minPrice != null) return Number(product.value.minPrice).toFixed(2)
+  return '0.00'
+})
+
+const displayOldPrice = computed(() => {
+  if (currentSku.value?.originalPrice != null) return Number(currentSku.value.originalPrice).toFixed(2)
+  return ''
+})
+
+const displayStock = computed(() => currentSku.value?.stock ?? 0)
+
+const currentSkuImage = computed(
+  () => currentSku.value?.image || carouselImages.value[0]?.url || ''
+)
+
+const selectedSkuLabel = computed(() => (currentSku.value ? skuLabel(currentSku.value) : ''))
+
+function attrsText(sku) {
+  if (sku?.attrs && typeof sku.attrs === 'object') {
+    return Object.values(sku.attrs).filter(Boolean).join(' / ')
+  }
+  return ''
 }
 
-function confirmSku() {
-  updateSku()
-  showSku.value = false
-  showToast('已选择：' + selectedSku.value)
+function skuLabel(sku) {
+  return sku?.name || attrsText(sku) || '默认规格'
 }
 
-function handleBuy() {
+function selectSku(sku) {
+  if ((sku.stock || 0) <= 0) {
+    showToast('该规格库存不足')
+    return
+  }
+  selectedSkuId.value = sku.id
+}
+
+function openSku(mode) {
+  skuMode.value = mode
   showSku.value = true
 }
 
-onMounted(() => {
-  updateSku()
-})
+function requireLogin() {
+  if (!isLoggedIn()) {
+    router.push('/login?redirect=' + encodeURIComponent(route.fullPath))
+    return false
+  }
+  return true
+}
+
+async function confirmSku() {
+  showSku.value = false
+  if (!requireLogin()) return
+  if (!selectedSkuId.value) {
+    showToast('请选择规格')
+    return
+  }
+  if (skuMode.value === 'cart') {
+    try {
+      await addToCart(selectedSkuId.value, quantity.value)
+      showToast('已加入购物车')
+    } catch (e) {
+      showToast(e.message || '加入购物车失败')
+    }
+  } else {
+    router.push(`/order/confirm?skuId=${selectedSkuId.value}&quantity=${quantity.value}&fromCart=false`)
+  }
+}
+
+async function loadProduct() {
+  loading.value = true
+  error.value = false
+  try {
+    const res = await getProductDetail(route.params.id)
+    const d = res.data
+    if (!d) {
+      product.value = null
+      return
+    }
+    product.value = d
+    const skus = d.skus || []
+    if (skus.length) {
+      const first = skus.find((s) => (s.stock || 0) > 0) || skus[0]
+      selectedSkuId.value = first.id
+    }
+  } catch (e) {
+    error.value = true
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(loadProduct)
 </script>
 
 <style scoped>
@@ -222,6 +271,10 @@ onMounted(() => {
   background: #f5f5f5;
   min-height: 100vh;
   padding-bottom: 56px;
+}
+
+.error-wrap {
+  padding-top: 40px;
 }
 
 /* 商品轮播 */
@@ -233,6 +286,13 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+  background: #fafafa;
+}
+.detail-swipe-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 /* 信息区 */
@@ -319,43 +379,28 @@ onMounted(() => {
   padding: 14px 0;
 }
 
-/* 评价预览 */
-.review-preview {
-  padding-bottom: 14px;
-}
-.review-item {
-  margin-top: 10px;
-}
-.review-user {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 4px;
-}
-.review-name {
-  font-size: 13px;
-  color: #666;
-}
-.review-time {
-  font-size: 11px;
-  color: #ccc;
-}
-.review-content {
-  font-size: 13px;
-  color: #333;
-  line-height: 1.5;
-}
-
-/* 详情图片 */
+/* 详情 */
 .desc-content {
   padding-bottom: 14px;
 }
-.desc-img {
-  height: 200px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 8px;
+.desc-subtitle {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 6px;
+}
+.desc-text {
+  font-size: 13px;
+  color: #333;
+  line-height: 1.6;
+}
+.desc-images {
+  margin-top: 8px;
+}
+.desc-img-el {
+  width: 100%;
+  display: block;
   border-radius: 8px;
+  margin-bottom: 8px;
 }
 
 /* SKU 弹窗 */
@@ -378,6 +423,12 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
+}
+.sku-img-el {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .sku-price-info {
   display: flex;
@@ -423,6 +474,11 @@ onMounted(() => {
   color: #FF2E93;
   background: #fff5f8;
 }
+.sku-option.disabled {
+  color: #ccc;
+  background: #f7f7f7;
+  text-decoration: line-through;
+}
 .sku-quantity {
   display: flex;
   align-items: center;
@@ -435,20 +491,6 @@ onMounted(() => {
 }
 .sku-confirm {
   padding-bottom: 20px;
-}
-
-/* 评价弹窗 */
-.review-panel {
-  padding: 16px;
-  max-height: 60vh;
-  overflow-y: auto;
-}
-.review-full-item {
-  padding: 12px 0;
-  border-bottom: 1px solid #f5f5f5;
-}
-.review-full-item:last-child {
-  border-bottom: none;
 }
 
 /* 底部操作栏 */

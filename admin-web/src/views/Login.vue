@@ -74,13 +74,16 @@ async function handleLogin() {
     try {
       const res = await adminLogin(form)
       if (res.data) {
-        userStore.login(res.data.token, {
-          username: res.data.username,
-          realName: res.data.realName,
-          role: 'admin',
+        const info = res.data
+        userStore.login(info.token, {
+          userId: info.userId,
+          username: info.username,
+          realName: info.realName,
+          userType: info.userType,
+          shopId: info.shopId,
         })
         ElMessage.success('登录成功')
-        router.push('/dashboard')
+        router.push(info.userType === 'shop' ? '/shop/dashboard' : '/dashboard')
       }
     } catch (e) {
       // 后端返回错误已由 request.js 拦截处理

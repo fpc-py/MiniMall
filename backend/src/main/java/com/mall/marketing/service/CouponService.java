@@ -115,6 +115,56 @@ public class CouponService {
         couponMapper.updateById(coupon);
     }
 
+    // ==================== 商家端 ====================
+
+    /** 商家创建店铺券：shopId 强制取自当前登录商家，不信任前端传值。 */
+    @Transactional(rollbackFor = Exception.class)
+    public CouponVO createForShop(Long shopId, CouponSaveRequest req) {
+        requireShop(shopId);
+        req.setShopId(shopId);
+        return create(req);
+    }
+
+    /** 商家查看本店优惠券。 */
+    public PageResult<CouponVO> pageForShop(Long shopId, String keyword, Integer status, PageQuery pageQuery) {
+        requireShop(shopId);
+        var wrapper = Wrappers.<Coupon>lambdaQuery()
+                .eq(Coupon::getShopId, shopId)
+                .orderByDesc(Coupon::getCreateTime).orderByDesc(Coupon::getId);
+        if (keyword != null && !keyword.isBlank()) {
+            wrapper.like(Coupon::getName, keyword);
+        }
+        if (status != null) {
+            wrapper.eq(Coupon::getStatus, status);
+        }
+        Page<Coupon> page = new Page<>(pageQuery.safePageNum(), pageQuery.safePageSize());
+        return PageResult.of(couponMapper.selectPage(page, wrapper), this::toCouponVO);
+    }
+
+    /** 商家启用/停用本店优惠券，非本店券一律 20001。 */
+    @Transactional(rollbackFor = Exception.class)
+    public void updateStatusForShop(Long shopId, Long couponId, Integer status) {
+        requireShop(shopId);
+        Coupon coupon = couponMapper.selectById(couponId);
+        if (coupon == null) {
+            throw new MallException(ErrorCode.Biz.COUPON_NOT_FOUND);
+        }
+        if (coupon.getShopId() == null || !coupon.getShopId().equals(shopId)) {
+            throw new MallException(ErrorCode.Auth.FORBIDDEN, "无权操作该优惠券");
+        }
+        if (status == null || (status != STATUS_ENABLED && status != STATUS_DISABLED)) {
+            throw new MallException(ErrorCode.Param.INVALID_PARAM, "状态只能为 0停用 或 1启用");
+        }
+        coupon.setStatus(status);
+        couponMapper.updateById(coupon);
+    }
+
+    private void requireShop(Long shopId) {
+        if (shopId == null) {
+            throw new MallException(ErrorCode.Auth.FORBIDDEN, "当前用户无店铺权限");
+        }
+    }
+
     // ==================== 会员端 ====================
 
     /** 可领取列表：启用 + 在有效期内 + 未领完 + 未达个人限领。 */

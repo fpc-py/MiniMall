@@ -8,7 +8,7 @@
       <div class="amount-val">
         <span class="sym">¥</span>{{ amount }}
       </div>
-      <div class="order-no">订单号：{{ orderNo }}</div>
+      <div class="order-no">订单号：{{ orderNo || '-' }}</div>
     </div>
 
     <!-- 支付方式 -->
@@ -17,9 +17,9 @@
 
       <div
         class="pay-item"
-        v-for="(method, i) in payMethods"
-        :key="i"
-        @click="selectedMethod = i"
+        v-for="method in payMethods"
+        :key="method.value"
+        @click="selectedMethod = method.value"
       >
         <div class="pay-item-left">
           <van-icon :name="method.icon" :size="24" :color="method.color" />
@@ -29,8 +29,8 @@
           </div>
         </div>
         <van-icon
-          :name="selectedMethod === i ? 'success' : 'circle'"
-          :color="selectedMethod === i ? '#FF2E93' : '#ddd'"
+          :name="selectedMethod === method.value ? 'success' : 'circle'"
+          :color="selectedMethod === method.value ? '#FF2E93' : '#ddd'"
           size="22"
         />
       </div>
@@ -48,6 +48,7 @@
         round
         block
         type="danger"
+        color="#FF2E93"
         size="large"
         :loading="paying"
         :loading-text="paying ? '支付处理中...' : ''"
@@ -84,22 +85,28 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showToast } from 'vant'
+import { getOrderDetail } from '@/api/order'
+import { createPay, payCallback } from '@/api/pay'
 
 const route = useRoute()
 const router = useRouter()
 
-const amount = ref('7298.00')
-const orderNo = ref(route.query.orderNo || Date.now().toString())
-const selectedMethod = ref(0)
+const orderId = route.query.id ? Number(route.query.id) : null
+const order = ref(null)
+
+const selectedMethod = ref(3)
 const paying = ref(false)
 const showResult = ref(false)
 const paySuccess = ref(false)
 
 const payMethods = [
-  { icon: 'smile-o', name: '微信支付', desc: '推荐使用微信支付', color: '#07c160' },
-  { icon: 'paid', name: '支付宝', desc: '支付宝安全支付', color: '#1677ff' },
-  { icon: 'balance-o', name: '余额支付', desc: '可用余额 ¥128.50', color: '#FF2E93' },
+  { value: 3, icon: 'chat-o', name: '微信支付', desc: '推荐使用微信支付', color: '#07c160' },
+  { value: 2, icon: 'paid', name: '支付宝', desc: '支付宝安全支付', color: '#1677ff' },
+  { value: 1, icon: 'balance-o', name: '余额支付', desc: '账户余额支付', color: '#FF2E93' },
 ]
+
+const amount = computed(() => Number(order.value?.payAmount || 0).toFixed(2))
+const orderNo = computed(() => order.value?.orderNo || '')
 
 // 倒计时
 const totalSeconds = 15 * 60
@@ -118,22 +125,55 @@ function startTimer() {
       remainSeconds.value--
     } else {
       clearInterval(timer)
+      timer = null
       showToast('支付超时')
     }
   }, 1000)
 }
 
-function handlePay() {
+async function loadOrder() {
+  if (!orderId) {
+    showToast('缺少订单信息')
+    return
+  }
+  try {
+    const res = await getOrderDetail(orderId)
+    order.value = res.data
+  } catch (e) {
+    showToast(e.message || '订单加载失败')
+  }
+}
+
+async function handlePay() {
+  if (!orderId || paying.value) return
+  if (!order.value) {
+    showToast('订单加载中，请稍后')
+    return
+  }
   paying.value = true
-  setTimeout(() => {
-    paying.value = false
+  try {
+    const res = await createPay({ orderId, payMethod: selectedMethod.value })
+    const pay = res.data || {}
+    if (pay.success === false) {
+      showToast(pay.message || '创建支付失败')
+      return
+    }
+    await payCallback({
+      transactionNo: pay.transactionNo,
+      status: 1,
+      amount: Number(order.value.payAmount),
+    })
     paySuccess.value = true
     showResult.value = true
-  }, 1500)
+  } catch (e) {
+    paySuccess.value = false
+    showResult.value = true
+  } finally {
+    paying.value = false
+  }
 }
 
 function handleBack() {
-  showToast('取消支付')
   router.back()
 }
 
@@ -143,6 +183,7 @@ function viewOrder() {
 }
 
 onMounted(() => {
+  loadOrder()
   startTimer()
 })
 

@@ -2,14 +2,17 @@
   <div class="home-page">
     <!-- 顶部搜索栏 -->
     <div class="search-header">
-      <div class="search-bar" @click="$router.push('/search')">
+      <div class="search-bar" @click="$router.push('/product/list')">
         <van-icon name="search" size="16" color="#999" />
         <span class="search-text">搜一搜心仪好物</span>
       </div>
-      <van-icon name="chat-o" size="22" color="#333" />
+      <div class="coupon-entry" @click="$router.push('/coupons')">
+        <van-icon name="coupon-o" size="18" color="#FF2E93" />
+        <span>领券</span>
+      </div>
     </div>
 
-    <!-- 轮播图 -->
+    <!-- 轮播图（本地静态运营位，无 CMS） -->
     <div class="swiper-section">
       <van-swipe :autoplay="3000" indicator-color="#FF2E93" lazy-render>
         <van-swipe-item v-for="(banner, i) in banners" :key="i">
@@ -23,57 +26,51 @@
 
     <!-- 金刚区 -->
     <div class="nav-grid-section">
-      <div class="nav-grid">
+      <van-skeleton v-if="loadingCategories" title :row="2" style="padding: 8px" />
+      <div v-else class="nav-grid">
         <div
           class="nav-item"
-          v-for="(item, i) in navItems" @click="$router.push('/product/' + (i+1))"
-          :key="i"
+          v-for="item in categories"
+          :key="item.id"
+          @click="goCategory(item.id)"
         >
-          <div class="nav-icon" :style="{ background: item.bg }">
-            <van-icon :name="item.icon" :size="24" color="#fff" />
+          <div class="nav-icon">
+            <van-icon :name="item.icon || 'apps-o'" :size="24" color="#fff" />
           </div>
-          <span class="nav-label">{{ item.label }}</span>
+          <span class="nav-label">{{ item.name }}</span>
         </div>
       </div>
+      <van-empty v-if="!loadingCategories && !categories.length" description="暂无分类" image-size="60" />
     </div>
 
-    <!-- 限时秒杀 -->
-    <div class="flash-section">
-      <div class="flash-header">
-        <div class="flash-title-left">
-          <span class="flash-label">限时秒杀</span>
-          <span class="flash-tag">爆款返场</span>
+    <!-- 热销榜 -->
+    <div class="hot-section">
+      <div class="hot-header">
+        <div class="hot-title-left">
+          <span class="hot-label">热销榜</span>
+          <span class="hot-tag">销量精选</span>
         </div>
-        <div class="flash-countdown">
-          <span class="countdown-label">距结束</span>
-          <van-count-down
-            :time="flashTime"
-            format="HH:mm:ss"
-            :auto-start="true"
-          >
-            <template #default="timeData">
-              <span class="time-block">{{ pad(timeData.hours) }}</span>
-              <span class="time-colon">:</span>
-              <span class="time-block">{{ pad(timeData.minutes) }}</span>
-              <span class="time-colon">:</span>
-              <span class="time-block">{{ pad(timeData.seconds) }}</span>
-            </template>
-          </van-count-down>
-        </div>
-        <span class="flash-more">更多 ›</span>
+        <span class="hot-more" @click="$router.push('/product/list')">更多 ›</span>
       </div>
-      <div class="flash-list">
-        <div class="flash-item" v-for="(item, i) in flashItems" :key="i" @click="$router.push('/product/' + (i+1))">
-          <div class="flash-img">
-            <van-icon :name="item.icon" :size="36" :color="item.color" />
+      <van-skeleton v-if="loadingHot" title :row="1" style="padding: 8px" />
+      <div v-else-if="hotList.length" class="hot-list">
+        <div
+          class="hot-item"
+          v-for="item in hotList"
+          :key="item.id"
+          @click="goProduct(item.id)"
+        >
+          <div class="hot-img">
+            <img v-if="item.mainImage" :src="item.mainImage" class="hot-img-el" alt="" />
+            <van-icon v-else name="photo-o" :size="36" color="#ccc" />
           </div>
-          <div class="flash-price">
+          <div class="hot-price">
             <span class="price-symbol">¥</span>
-            <span class="price-val">{{ item.price }}</span>
+            <span class="price-val">{{ money(item.minPrice) }}</span>
           </div>
-          <div class="flash-old-price">¥{{ item.oldPrice }}</div>
         </div>
       </div>
+      <van-empty v-else description="暂无热销商品" image-size="60" />
     </div>
 
     <!-- 推荐商品 -->
@@ -83,80 +80,124 @@
         <span class="title-text">为你推荐</span>
         <span class="title-line"></span>
       </div>
-      <div class="product-grid">
+      <van-skeleton v-if="loadingRecommend" title :row="3" style="padding: 8px" />
+      <div v-else-if="recommendList.length" class="product-grid">
         <div
           class="product-card"
-          v-for="(item, i) in recommendList" @click="$router.push('/product/' + (i+1))"
-          :key="i"
+          v-for="item in recommendList"
+          :key="item.id"
+          @click="goProduct(item.id)"
         >
           <div class="product-img">
-            <van-icon :name="item.icon" :size="48" :color="item.color" />
+            <img v-if="item.mainImage" :src="item.mainImage" class="product-img-el" alt="" />
+            <van-icon v-else name="photo-o" :size="48" color="#ccc" />
           </div>
           <div class="product-info">
             <div class="product-name van-multi-ellipsis--l2">{{ item.name }}</div>
             <div class="product-price-row">
               <span class="product-price">
                 <span class="price-symbol">¥</span>
-                <span class="price-val">{{ item.price }}</span>
+                <span class="price-val">{{ money(item.minPrice) }}</span>
               </span>
-              <span class="product-old-price">¥{{ item.oldPrice }}</span>
+              <span
+                v-if="showMaxPrice(item)"
+                class="product-old-price"
+              >最高 ¥{{ money(item.maxPrice) }}</span>
             </div>
-            <div class="product-sales">已售 {{ item.sales }}</div>
+            <div class="product-sales">已售 {{ item.totalSales || 0 }}</div>
           </div>
         </div>
       </div>
+      <van-empty v-else description="暂无推荐商品" image-size="60" />
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { showToast } from 'vant'
+import { getCategoryTree, getProductList } from '@/api/product'
 
-const pad = (num) => String(num).padStart(2, '0')
+const router = useRouter()
 
-// 轮播数据
+// 轮播数据（本地静态运营位）
 const banners = [
   { bg: 'linear-gradient(135deg, #FF2E93 0%, #FF6B9D 100%)', title: '夏日焕新季', sub: '全场低至5折' },
   { bg: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', title: '数码狂欢节', sub: '爆款直降' },
   { bg: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', title: '美妆特卖', sub: '大牌满减' },
 ]
 
-// 金刚区
-const navItems = [
-  { icon: 'phone-o', label: '手机', bg: '#FF2E93' },
-  { icon: 'computer-o', label: '电脑', bg: '#667eea' },
-  { icon: 'tv-o', label: '家电', bg: '#f5576c' },
-  { icon: 'coupon-o', label: '数码', bg: '#4facfe' },
-  { icon: 'more-o', label: '服饰', bg: '#43e97b' },
-  { icon: 'shop-o', label: '超市', bg: '#fa709a' },
-  { icon: 'gem-o', label: '生鲜', bg: '#fee140' },
-  { icon: 'like-o', label: '美妆', bg: '#f093fb' },
-  { icon: 'fire-o', label: '运动', bg: '#4facfe' },
-  { icon: 'wap-nav', label: '更多', bg: '#a18cd1' },
-]
+const categories = ref([])
+const hotList = ref([])
+const recommendList = ref([])
 
-// 秒杀倒计时（剩余 2 小时）
-const flashTime = ref(2 * 60 * 60 * 1000)
+const loadingCategories = ref(false)
+const loadingHot = ref(false)
+const loadingRecommend = ref(false)
 
-// 秒杀商品
-const flashItems = [
-  { icon: 'phone-o', color: '#FF2E93', price: '1999', oldPrice: '2999' },
-  { icon: 'tv-o', color: '#667eea', price: '2499', oldPrice: '3999' },
-  { icon: 'sound-o', color: '#f5576c', price: '399', oldPrice: '699' },
-  { icon: 'gem-o', color: '#4facfe', price: '89', oldPrice: '199' },
-  { icon: 'clock-o', color: '#43e97b', price: '599', oldPrice: '999' },
-  { icon: 'music-o', color: '#fa709a', price: '129', oldPrice: '299' },
-]
+function money(v) {
+  return Number(v || 0).toFixed(2)
+}
 
-// 推荐商品
-const recommendList = [
-  { icon: 'phone-o', color: '#FF2E93', name: '旗舰智能手机 5G全网通 高清拍照 长续航', price: '3999', oldPrice: '5999', sales: '1.2万' },
-  { icon: 'laptop-o', color: '#667eea', name: '轻薄笔记本电脑 14英寸 商务办公 学生本', price: '4599', oldPrice: '5299', sales: '8563' },
-  { icon: 'tv-o', color: '#f5576c', name: '智能4K电视 65英寸 全面屏 家庭影院', price: '3299', oldPrice: '4999', sales: '6321' },
-  { icon: 'gem-o', color: '#4facfe', name: '蓝牙降噪耳机 无线 长续航 HiFi音质', price: '599', oldPrice: '999', sales: '2.1万' },
-  { icon: 'more-o', color: '#43e97b', name: '运动跑鞋 透气网面 轻便减震 男女同款', price: '299', oldPrice: '599', sales: '1.8万' },
-  { icon: 'like-o', color: '#fa709a', name: '精华液护肤品 保湿补水 提亮肤色', price: '239', oldPrice: '399', sales: '3.4万' },
-]
+function showMaxPrice(item) {
+  return item.maxPrice != null && Number(item.maxPrice) > Number(item.minPrice || 0)
+}
+
+async function loadCategories() {
+  loadingCategories.value = true
+  try {
+    const res = await getCategoryTree()
+    const tree = res.data || []
+    categories.value = tree.filter((c) => c.level === 1 || c.parentId === 0 || c.parentId == null)
+  } catch (e) {
+    categories.value = []
+  } finally {
+    loadingCategories.value = false
+  }
+}
+
+async function loadHot() {
+  loadingHot.value = true
+  try {
+    const res = await getProductList({ pageNum: 1, pageSize: 6, sort: 'sales' })
+    hotList.value = res.data?.list || []
+  } catch (e) {
+    hotList.value = []
+  } finally {
+    loadingHot.value = false
+  }
+}
+
+async function loadRecommend() {
+  loadingRecommend.value = true
+  try {
+    const res = await getProductList({ pageNum: 1, pageSize: 10 })
+    recommendList.value = res.data?.list || []
+  } catch (e) {
+    recommendList.value = []
+  } finally {
+    loadingRecommend.value = false
+  }
+}
+
+function goCategory(id) {
+  router.push({ path: '/product/list', query: { categoryId: id } })
+}
+
+function goProduct(id) {
+  if (!id) {
+    showToast('商品信息异常')
+    return
+  }
+  router.push(`/product/${id}`)
+}
+
+onMounted(() => {
+  loadCategories()
+  loadHot()
+  loadRecommend()
+})
 </script>
 
 <style scoped>
@@ -190,6 +231,14 @@ const recommendList = [
 .search-text {
   color: #999;
   font-size: 13px;
+}
+.coupon-entry {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 10px;
+  color: #FF2E93;
+  flex-shrink: 0;
 }
 
 /* 轮播 */
@@ -241,82 +290,58 @@ const recommendList = [
   display: flex;
   align-items: center;
   justify-content: center;
+  background: linear-gradient(135deg, #FF2E93, #ff6b9d);
 }
 .nav-label {
   font-size: 12px;
   color: #333;
 }
 
-/* 限时秒杀 */
-.flash-section {
+/* 热销榜 */
+.hot-section {
   background: #fff;
   margin: 0 12px 10px;
   border-radius: 12px;
   padding: 14px 12px;
 }
-.flash-header {
+.hot-header {
   display: flex;
   align-items: center;
   gap: 10px;
   margin-bottom: 12px;
 }
-.flash-title-left {
+.hot-title-left {
   display: flex;
   align-items: center;
   gap: 8px;
 }
-.flash-label {
+.hot-label {
   font-size: 16px;
   font-weight: 700;
   color: #FF2E93;
 }
-.flash-tag {
+.hot-tag {
   font-size: 10px;
   background: #FF2E93;
   color: #fff;
   padding: 1px 6px;
   border-radius: 4px;
 }
-.flash-countdown {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.countdown-label {
-  font-size: 11px;
-  color: #999;
-}
-.time-block {
-  display: inline-block;
-  background: #222;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 700;
-  padding: 2px 4px;
-  border-radius: 3px;
-  min-width: 20px;
-  text-align: center;
-}
-.time-colon {
-  color: #222;
-  font-weight: 700;
-  font-size: 12px;
-}
-.flash-more {
+.hot-more {
   margin-left: auto;
   font-size: 12px;
   color: #999;
 }
-.flash-list {
+.hot-list {
   display: flex;
   gap: 12px;
   overflow-x: auto;
   padding-bottom: 4px;
 }
-.flash-list::-webkit-scrollbar {
+.hot-list::-webkit-scrollbar {
   display: none;
 }
-.flash-item {
+.hot-item {
   flex-shrink: 0;
   width: 80px;
   display: flex;
@@ -324,7 +349,7 @@ const recommendList = [
   align-items: center;
   gap: 4px;
 }
-.flash-img {
+.hot-img {
   width: 64px;
   height: 64px;
   background: #fef0f5;
@@ -332,21 +357,22 @@ const recommendList = [
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
 }
-.flash-price {
+.hot-img-el {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.hot-price {
   color: #FF2E93;
   font-weight: 700;
 }
-.flash-price .price-symbol {
+.hot-price .price-symbol {
   font-size: 10px;
 }
-.flash-price .price-val {
+.hot-price .price-val {
   font-size: 16px;
-}
-.flash-old-price {
-  font-size: 11px;
-  color: #ccc;
-  text-decoration: line-through;
 }
 
 /* 推荐商品 */
@@ -388,6 +414,12 @@ const recommendList = [
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+}
+.product-img-el {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .product-info {
   padding: 8px 10px 10px;
@@ -417,7 +449,6 @@ const recommendList = [
 .product-old-price {
   font-size: 11px;
   color: #ccc;
-  text-decoration: line-through;
 }
 .product-sales {
   font-size: 11px;

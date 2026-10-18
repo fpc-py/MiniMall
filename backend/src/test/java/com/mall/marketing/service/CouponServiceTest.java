@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.mall.common.ErrorCode;
 import com.mall.common.MallException;
+import com.mall.common.PageQuery;
 import com.mall.marketing.dto.CouponSaveRequest;
 import com.mall.marketing.entity.Coupon;
 import com.mall.marketing.entity.CouponMember;
@@ -362,5 +363,78 @@ class CouponServiceTest {
         couponService.returnCoupon(100L);
 
         verify(couponMemberMapper).update(any(), any());
+    }
+
+    // ==================== 商家端（店铺券） ====================
+
+    @Test
+    @DisplayName("商家建券：shopId 强制取自当前商家，忽略前端传值")
+    void createForShopForcesShopId() {
+        CouponSaveRequest req = saveRequest();
+        req.setShopId(999L);
+        when(couponMapper.insert(any(Coupon.class))).thenAnswer(inv -> {
+            inv.getArgument(0, Coupon.class).setId(10L);
+            return 1;
+        });
+
+        couponService.createForShop(1L, req);
+
+        ArgumentCaptor<Coupon> captor = ArgumentCaptor.forClass(Coupon.class);
+        verify(couponMapper).insert(captor.capture());
+        assertThat(captor.getValue().getShopId()).isEqualTo(1L);
+    }
+
+    @Test
+    @DisplayName("商家建券：无店铺权限抛 20001")
+    void createForShopWithoutShopIdIsRejected() {
+        assertThatThrownBy(() -> couponService.createForShop(null, saveRequest()))
+                .isInstanceOf(MallException.class)
+                .extracting(e -> ((MallException) e).getCode())
+                .isEqualTo(ErrorCode.Auth.FORBIDDEN.getCode());
+        verify(couponMapper, never()).insert(any(Coupon.class));
+    }
+
+    @Test
+    @DisplayName("商家券列表：无店铺权限抛 20001")
+    void pageForShopWithoutShopIdIsRejected() {
+        assertThatThrownBy(() -> couponService.pageForShop(null, null, null, new PageQuery()))
+                .isInstanceOf(MallException.class)
+                .extracting(e -> ((MallException) e).getCode())
+                .isEqualTo(ErrorCode.Auth.FORBIDDEN.getCode());
+    }
+
+    @Test
+    @DisplayName("商家改状态：券不存在抛 30029")
+    void updateStatusForShopNotFound() {
+        when(couponMapper.selectById(10L)).thenReturn(null);
+
+        assertThatThrownBy(() -> couponService.updateStatusForShop(1L, 10L, CouponService.STATUS_DISABLED))
+                .isInstanceOf(MallException.class)
+                .extracting(e -> ((MallException) e).getCode())
+                .isEqualTo(ErrorCode.Biz.COUPON_NOT_FOUND.getCode());
+    }
+
+    @Test
+    @DisplayName("商家改状态：非本店券抛 20001（越权）")
+    void updateStatusForShopRejectsForeignCoupon() {
+        when(couponMapper.selectById(10L)).thenReturn(coupon(CouponService.TYPE_FULL_REDUCE, "100", "20", null, 9L));
+
+        assertThatThrownBy(() -> couponService.updateStatusForShop(1L, 10L, CouponService.STATUS_DISABLED))
+                .isInstanceOf(MallException.class)
+                .extracting(e -> ((MallException) e).getCode())
+                .isEqualTo(ErrorCode.Auth.FORBIDDEN.getCode());
+        verify(couponMapper, never()).updateById(any(Coupon.class));
+    }
+
+    @Test
+    @DisplayName("商家改状态：本店券可正常停用")
+    void updateStatusForShopSucceeds() {
+        Coupon c = coupon(CouponService.TYPE_FULL_REDUCE, "100", "20", null, 1L);
+        when(couponMapper.selectById(10L)).thenReturn(c);
+
+        couponService.updateStatusForShop(1L, 10L, CouponService.STATUS_DISABLED);
+
+        assertThat(c.getStatus()).isEqualTo(CouponService.STATUS_DISABLED);
+        verify(couponMapper).updateById(c);
     }
 }

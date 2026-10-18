@@ -3,7 +3,7 @@
     <van-nav-bar title="我的订单" fixed placeholder />
 
     <!-- 订单标签 -->
-    <van-tabs v-model:active="activeTab" sticky offset-top="46" color="#FF2E93" line-width="20">
+    <van-tabs v-model:active="activeTab" sticky offset-top="46" color="#FF2E93" line-width="20" @change="loadOrders">
       <van-tab title="全部" />
       <van-tab title="待付款" />
       <van-tab title="待发货" />
@@ -13,85 +13,74 @@
 
     <!-- 空状态 -->
     <van-empty
-      v-if="!filteredOrders.length"
+      v-if="!loading && !orders.length"
       description="暂无相关订单"
     >
       <template #image>
         <van-icon name="orders-o" size="80" color="#eee" />
       </template>
-      <van-button round type="danger" size="small" @click="$router.push('/')">去逛逛</van-button>
+      <van-button round type="danger" color="#FF2E93" size="small" @click="$router.push('/')">去逛逛</van-button>
     </van-empty>
 
     <!-- 订单列表 -->
     <div class="order-list" v-else>
-      <div class="order-card" v-for="order in filteredOrders" :key="order.id">
+      <div class="order-card" v-for="order in orders" :key="order.id" @click="goDetail(order.id)">
         <div class="order-header">
-          <span class="order-store">
-            <van-icon name="shop-o" size="14" color="#FF2E93" />
-            {{ order.store }}
-          </span>
-          <span class="order-status" :style="{ color: statusColor(order.status) }">
-            {{ statusText(order.status) }}
+          <span class="order-no">{{ order.orderNo }}</span>
+          <span class="order-status" :style="{ color: statusColor(order.orderStatus) }">
+            {{ statusText(order.orderStatus) }}
           </span>
         </div>
 
-        <div
-          class="order-goods"
-          v-for="good in order.goods"
-          :key="good.id"
-          @click="goDetail(order.id)"
-        >
+        <div class="order-goods" v-for="item in order.items || []" :key="item.skuId">
           <div class="order-goods-img">
-            <van-icon :name="good.icon" :size="36" :color="good.color" />
+            <img v-if="item.productImage" :src="item.productImage" class="order-goods-img-el" alt="" />
+            <van-icon v-else name="photo-o" :size="36" color="#ccc" />
           </div>
           <div class="order-goods-info">
-            <div class="order-goods-name van-multi-ellipsis--l2">{{ good.name }}</div>
-            <div class="order-goods-spec">{{ good.spec }}</div>
+            <div class="order-goods-name van-multi-ellipsis--l2">{{ item.productName }}</div>
+            <div class="order-goods-spec">{{ item.attrs }}</div>
             <div class="order-goods-bottom">
               <span class="order-goods-price">
-                <span class="sym">¥</span>{{ good.price }}
+                <span class="sym">¥</span>{{ money(item.price) }}
               </span>
-              <span class="order-goods-qty">x{{ good.quantity }}</span>
+              <span class="order-goods-qty">x{{ item.quantity }}</span>
             </div>
           </div>
         </div>
 
         <div class="order-footer">
           <div class="order-total">
-            共 {{ order.totalQty }} 件 合计：
+            实付：
             <span class="total-price">
-              <span class="sym">¥</span>{{ order.totalPrice }}
+              <span class="sym">¥</span>{{ money(order.payAmount) }}
             </span>
           </div>
+          <div class="order-time">{{ order.createTime }}</div>
           <div class="order-actions">
             <van-button
-              v-if="order.status === 'pending_payment'"
+              v-if="order.orderStatus === 10"
               round
               type="danger"
+              color="#FF2E93"
               size="small"
-              @click="goPay(order.id)"
+              @click.stop="goPay(order.id)"
             >去支付</van-button>
             <van-button
-              v-if="order.status === 'pending_receipt'"
+              v-if="order.orderStatus === 10"
+              round
+              plain
+              size="small"
+              color="#999"
+              @click.stop="handleCancel(order)"
+            >取消订单</van-button>
+            <van-button
+              v-if="order.orderStatus === 30"
               round
               size="small"
               color="#FF2E93"
-              @click="confirmReceipt(order.id)"
+              @click.stop="handleReceipt(order)"
             >确认收货</van-button>
-            <van-button
-              v-if="order.status === 'completed'"
-              round
-              plain
-              size="small"
-              color="#999"
-            >删除订单</van-button>
-            <van-button
-              v-if="order.status === 'pending_payment'"
-              round
-              plain
-              size="small"
-              color="#999"
-            >取消订单</van-button>
           </div>
         </div>
       </div>
@@ -100,94 +89,93 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast, showConfirmDialog } from 'vant'
+import { getMyOrders, cancelOrder, confirmReceipt } from '@/api/order'
 
 const router = useRouter()
 const activeTab = ref(0)
+const loading = ref(false)
+const orders = ref([])
 
-const orders = ref([
-  {
-    id: '202609130001',
-    store: 'Mall 旗舰店',
-    status: 'pending_payment',
-    totalQty: 2,
-    totalPrice: '7298.00',
-    goods: [
-      { id: 1, icon: 'phone-o', color: '#FF2E93', name: '旗舰智能手机 5G全网通', spec: '曜石黑 / 12GB+256GB', price: '3999', quantity: 1 },
-      { id: 2, icon: 'tv-o', color: '#667eea', name: '智能4K电视 65英寸', spec: '65英寸 / 4K超清', price: '3299', quantity: 1 },
-    ],
-  },
-  {
-    id: '202609120002',
-    store: 'Mall 数码店',
-    status: 'pending_shipment',
-    totalQty: 1,
-    totalPrice: '599.00',
-    goods: [
-      { id: 3, icon: 'sound-o', color: '#f5576c', name: '蓝牙降噪耳机 无线 长续航', spec: '黑色 / 标准版', price: '599', quantity: 1 },
-    ],
-  },
-  {
-    id: '202609100003',
-    store: 'Mall 美妆店',
-    status: 'pending_receipt',
-    totalQty: 2,
-    totalPrice: '478.00',
-    goods: [
-      { id: 4, icon: 'like-o', color: '#fa709a', name: '精华液护肤品 保湿补水', spec: '30ml / 经典版', price: '239', quantity: 2 },
-    ],
-  },
-  {
-    id: '202609050004',
-    store: 'Mall 运动店',
-    status: 'completed',
-    totalQty: 1,
-    totalPrice: '299.00',
-    goods: [
-      { id: 5, icon: 'more-o', color: '#43e97b', name: '运动跑鞋 透气网面 轻便减震', spec: '42码 / 白色', price: '299', quantity: 1 },
-    ],
-  },
-])
+const tabStatusMap = [null, 10, 20, 30, 40]
 
-const tabStatusMap = ['', 'pending_payment', 'pending_shipment', 'pending_receipt', 'completed']
-
-const filteredOrders = computed(() => {
-  const status = tabStatusMap[activeTab.value]
-  if (!status) return orders.value
-  return orders.value.filter(o => o.status === status)
-})
+function money(v) {
+  return Number(v || 0).toFixed(2)
+}
 
 function statusText(status) {
-  const map = { pending_payment: '待付款', pending_shipment: '待发货', pending_receipt: '待收货', completed: '已完成', cancelled: '已取消' }
-  return map[status] || status
+  const map = { 10: '待付款', 20: '待发货', 30: '待收货', 40: '已完成', 5: '已取消' }
+  return map[status] || '未知'
 }
 
 function statusColor(status) {
-  const map = { pending_payment: '#FF2E93', pending_shipment: '#f57c00', pending_receipt: '#1677ff', completed: '#07c160' }
+  const map = { 10: '#FF2E93', 20: '#f57c00', 30: '#1677ff', 40: '#07c160', 5: '#999' }
   return map[status] || '#999'
 }
 
-function goDetail(orderId) {
-  router.push(`/product/1`)
+async function loadOrders() {
+  loading.value = true
+  try {
+    const params = { pageNum: 1, pageSize: 20 }
+    const status = tabStatusMap[activeTab.value]
+    if (status != null) params.orderStatus = status
+    const res = await getMyOrders(params)
+    orders.value = res.data?.list || []
+  } catch (e) {
+    showToast(e.message || '加载失败')
+    orders.value = []
+  } finally {
+    loading.value = false
+  }
 }
 
-function goPay(orderId) {
-  router.push(`/order/payment?orderNo=${orderId}`)
+function goDetail(id) {
+  router.push(`/order/detail/${id}`)
 }
 
-function confirmReceipt(orderId) {
+function goPay(id) {
+  router.push(`/order/payment?id=${id}`)
+}
+
+function handleCancel(order) {
+  showConfirmDialog({
+    title: '取消订单',
+    message: '确定要取消该订单吗？',
+    confirmButtonColor: '#FF2E93',
+  })
+    .then(async () => {
+      try {
+        await cancelOrder(order.id, '买家取消')
+        showToast('已取消')
+        await loadOrders()
+      } catch (e) {
+        showToast(e.message || '取消失败')
+      }
+    })
+    .catch(() => {})
+}
+
+function handleReceipt(order) {
   showConfirmDialog({
     title: '确认收货',
     message: '是否确认已收到商品？',
     confirmButtonColor: '#FF2E93',
-  }).then(() => {
-    const order = orders.value.find(o => o.id === orderId)
-    if (order) order.status = 'completed'
-    showToast('已确认收货')
-  }).catch(() => {})
+  })
+    .then(async () => {
+      try {
+        await confirmReceipt(order.id)
+        showToast('已确认收货')
+        await loadOrders()
+      } catch (e) {
+        showToast(e.message || '操作失败')
+      }
+    })
+    .catch(() => {})
 }
+
+onMounted(loadOrders)
 </script>
 
 <style scoped>
@@ -213,17 +201,13 @@ function confirmReceipt(orderId) {
   padding: 12px 14px;
   border-bottom: 1px solid #f5f5f5;
 }
-.order-store {
-  font-size: 13px;
-  font-weight: 600;
-  color: #333;
-  display: flex;
-  align-items: center;
-  gap: 4px;
+.order-no {
+  font-size: 12px;
+  color: #999;
 }
 .order-status {
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .order-goods {
@@ -244,6 +228,12 @@ function confirmReceipt(orderId) {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
+}
+.order-goods-img-el {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .order-goods-info {
   flex: 1;
@@ -283,7 +273,6 @@ function confirmReceipt(orderId) {
   text-align: right;
   font-size: 12px;
   color: #666;
-  margin-bottom: 8px;
 }
 .total-price {
   color: #FF2E93;
@@ -291,9 +280,16 @@ function confirmReceipt(orderId) {
   font-size: 15px;
 }
 .total-price .sym { font-size: 11px; }
+.order-time {
+  text-align: right;
+  font-size: 11px;
+  color: #ccc;
+  margin-top: 2px;
+}
 .order-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+  margin-top: 8px;
 }
 </style>

@@ -2,52 +2,71 @@
   <div class="cart-page">
     <van-nav-bar title="购物车" fixed placeholder />
 
+    <van-skeleton v-if="loading" title :row="4" style="padding: 16px" />
+
     <!-- 空购物车 -->
     <van-empty
-      v-if="!cartItems.length"
+      v-else-if="!allItems.length"
       description="购物车是空的"
     >
       <template #image>
         <van-icon name="cart-o" size="80" color="#eee" />
       </template>
-      <van-button round type="danger" size="small" @click="$router.push('/')">去逛逛</van-button>
+      <van-button round type="danger" color="#FF2E93" size="small" @click="$router.push('/')">去逛逛</van-button>
     </van-empty>
 
     <!-- 购物车列表 -->
     <template v-else>
       <div class="cart-list">
-        <div
-          class="cart-item"
-          v-for="(item, i) in cartItems"
-          :key="item.id"
-        >
-          <div class="item-check" @click="toggleCheck(i)">
-            <van-icon
-              :name="item.checked ? 'success' : 'circle'"
-              :color="item.checked ? '#FF2E93' : '#ddd'"
-              size="20"
-            />
+        <div class="shop-group" v-for="shop in cart.shops" :key="shop.shopId">
+          <div class="shop-title">
+            <van-icon name="shop-o" size="14" color="#FF2E93" />
+            <span>店铺 {{ shop.shopId }}</span>
           </div>
-          <div class="item-img">
-            <van-icon :name="item.icon" :size="36" :color="item.color" />
-          </div>
-          <div class="item-info">
-            <div class="item-name van-multi-ellipsis--l2">{{ item.name }}</div>
-            <div class="item-spec">{{ item.spec }}</div>
-            <div class="item-bottom">
-              <span class="item-price">
-                <span class="sym">¥</span>{{ item.price }}
-              </span>
-              <van-stepper
-                v-model="item.quantity"
-                :min="1"
-                :max="99"
-                size="24"
-                theme="round"
-                button-size="20"
-                @change="updateCart"
+
+          <div
+            class="cart-item"
+            v-for="item in shop.items"
+            :key="item.skuId"
+          >
+            <div class="item-check" @click="toggleCheck(item)">
+              <van-icon
+                :name="item.selected ? 'success' : 'circle'"
+                :color="item.selected ? '#FF2E93' : '#ddd'"
+                size="20"
               />
             </div>
+            <div class="item-img">
+              <img v-if="item.image" :src="item.image" class="item-img-el" alt="" />
+              <van-icon v-else name="photo-o" :size="36" color="#ccc" />
+            </div>
+            <div class="item-info">
+              <div class="item-name van-multi-ellipsis--l2">{{ item.spuName }}</div>
+              <div class="item-spec">{{ item.skuName }}</div>
+              <div class="item-stock" v-if="!item.inStock">库存不足</div>
+              <div class="item-bottom">
+                <span class="item-price">
+                  <span class="sym">¥</span>{{ money(item.price) }}
+                </span>
+                <van-stepper
+                  :model-value="item.quantity"
+                  :min="1"
+                  :max="item.stock || 99"
+                  :disabled="!item.inStock"
+                  size="24"
+                  theme="round"
+                  button-size="20"
+                  @change="(v) => handleQtyChange(item, v)"
+                />
+              </div>
+            </div>
+            <van-icon
+              class="item-del"
+              name="delete-o"
+              size="18"
+              color="#ccc"
+              @click="handleRemove(item)"
+            />
           </div>
         </div>
       </div>
@@ -66,14 +85,14 @@
           <div class="total-price">
             <span class="total-label">合计：</span>
             <span class="total-val">
-              <span class="sym">¥</span>{{ totalPrice }}
+              <span class="sym">¥</span>{{ money(cart.selectedAmount) }}
             </span>
           </div>
-          <div class="total-count">已选 {{ checkedCount }} 件</div>
+          <div class="total-count">已选 {{ cart.selectedQuantity || 0 }} 件</div>
         </div>
         <div
           class="settle-btn"
-          :class="{ disabled: checkedCount === 0 }"
+          :class="{ disabled: !cart.selectedQuantity }"
           @click="handleSettle"
         >
           结算
@@ -84,76 +103,94 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { showToast } from 'vant'
+import { showToast, showConfirmDialog } from 'vant'
+import { getCart, updateCartItem, removeCartItem, selectAll } from '@/api/cart'
 
 const router = useRouter()
 
-const cartItems = ref([
-  {
-    id: 1,
-    icon: 'phone-o',
-    color: '#FF2E93',
-    name: '旗舰智能手机 5G全网通 高清拍照 长续航',
-    spec: '曜石黑 / 12GB+256GB',
-    price: '3999',
-    quantity: 1,
-    checked: true,
-  },
-  {
-    id: 2,
-    icon: 'tv-o',
-    color: '#667eea',
-    name: '智能4K电视 65英寸 全面屏 家庭影院',
-    spec: '65英寸 / 4K超清',
-    price: '3299',
-    quantity: 1,
-    checked: true,
-  },
-  {
-    id: 3,
-    icon: 'sound-o',
-    color: '#f5576c',
-    name: '蓝牙降噪耳机 无线 长续航 HiFi音质',
-    spec: '黑色 / 标准版',
-    price: '599',
-    quantity: 2,
-    checked: false,
-  },
-])
+const loading = ref(false)
+const cart = ref({ shops: [], totalQuantity: 0, selectedQuantity: 0, selectedAmount: 0 })
 
-const allChecked = computed(() => cartItems.value.length > 0 && cartItems.value.every(i => i.checked))
-const checkedItems = computed(() => cartItems.value.filter(i => i.checked))
-const checkedCount = computed(() => checkedItems.value.length)
-const totalPrice = computed(() => {
-  return checkedItems.value.reduce((sum, i) => sum + parseFloat(i.price) * i.quantity, 0).toFixed(2)
-})
+const allItems = computed(() => (cart.value.shops || []).flatMap((s) => s.items || []))
+const allChecked = computed(
+  () => allItems.value.length > 0 && allItems.value.every((i) => i.selected)
+)
 
-function toggleCheck(index) {
-  cartItems.value[index].checked = !cartItems.value[index].checked
+function money(v) {
+  return Number(v || 0).toFixed(2)
 }
 
-function toggleAll() {
-  const newVal = !allChecked.value
-  cartItems.value.forEach(i => { i.checked = newVal })
+async function loadCart() {
+  loading.value = true
+  try {
+    const res = await getCart()
+    cart.value = res.data || { shops: [], totalQuantity: 0, selectedQuantity: 0, selectedAmount: 0 }
+  } catch (e) {
+    showToast(e.message || '加载失败')
+  } finally {
+    loading.value = false
+  }
 }
 
-function updateCart() {
-  // 后续可同步到后端
+async function toggleCheck(item) {
+  try {
+    await updateCartItem(item.skuId, { selected: !item.selected })
+    await loadCart()
+  } catch (e) {
+    showToast(e.message || '操作失败')
+  }
+}
+
+async function toggleAll() {
+  try {
+    await selectAll(!allChecked.value)
+    await loadCart()
+  } catch (e) {
+    showToast(e.message || '操作失败')
+  }
+}
+
+async function handleQtyChange(item, value) {
+  const qty = Number(value)
+  if (!qty || qty === item.quantity) return
+  try {
+    await updateCartItem(item.skuId, { quantity: qty })
+    await loadCart()
+  } catch (e) {
+    showToast(e.message || '修改数量失败')
+    await loadCart()
+  }
+}
+
+function handleRemove(item) {
+  showConfirmDialog({
+    title: '提示',
+    message: '确定要删除该商品吗？',
+    confirmButtonColor: '#FF2E93',
+  })
+    .then(async () => {
+      try {
+        await removeCartItem(item.skuId)
+        showToast('已删除')
+        await loadCart()
+      } catch (e) {
+        showToast(e.message || '删除失败')
+      }
+    })
+    .catch(() => {})
 }
 
 function handleSettle() {
-  if (checkedCount.value === 0) {
+  if (!cart.value.selectedQuantity) {
     showToast('请选择商品')
     return
   }
-  // 跳转到确认订单页，带选中商品参数
-  router.push({
-    path: '/order/confirm',
-    query: { items: checkedItems.value.map(i => i.id).join(',') }
-  })
+  router.push('/order/confirm')
 }
+
+onMounted(loadCart)
 </script>
 
 <style scoped>
@@ -166,6 +203,18 @@ function handleSettle() {
 .cart-list {
   padding: 10px 12px;
 }
+.shop-group {
+  margin-bottom: 10px;
+}
+.shop-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+  padding: 6px 2px 8px;
+}
 .cart-item {
   display: flex;
   align-items: center;
@@ -173,7 +222,7 @@ function handleSettle() {
   background: #fff;
   border-radius: 10px;
   padding: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 .item-check {
   flex-shrink: 0;
@@ -187,6 +236,12 @@ function handleSettle() {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
+}
+.item-img-el {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .item-info {
   flex: 1;
@@ -202,6 +257,11 @@ function handleSettle() {
   color: #999;
   margin-top: 2px;
 }
+.item-stock {
+  font-size: 11px;
+  color: #ee0a24;
+  margin-top: 2px;
+}
 .item-bottom {
   display: flex;
   align-items: center;
@@ -215,6 +275,9 @@ function handleSettle() {
 }
 .item-price .sym {
   font-size: 11px;
+}
+.item-del {
+  flex-shrink: 0;
 }
 
 /* 底部结算栏 */

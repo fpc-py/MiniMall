@@ -4,18 +4,22 @@
     <el-card shadow="never" style="margin-bottom:16px">
       <el-form :model="search" inline>
         <el-form-item label="商品名称">
-          <el-input v-model="search.name" placeholder="搜索商品" clearable style="width:200px" />
+          <el-input v-model="search.keyword" placeholder="搜索商品" clearable style="width:200px" @keyup.enter="resetAndLoad" />
         </el-form-item>
         <el-form-item label="类目">
-          <el-select v-model="search.category" placeholder="选择类目" clearable style="width:140px">
-            <el-option label="手机数码" value="phone" />
-            <el-option label="家用电器" value="appliance" />
-            <el-option label="服饰鞋包" value="fashion" />
-          </el-select>
+          <el-tree-select
+            v-model="search.categoryId"
+            :data="categoryTree"
+            :props="{ label: 'name', value: 'id' }"
+            placeholder="选择类目"
+            check-strictly
+            clearable
+            style="width:200px"
+          />
         </el-form-item>
         <el-form-item>
-          <el-button type="danger" @click="loadData">查询</el-button>
-          <el-button @click="search = { name: '', category: '' }; loadData()">重置</el-button>
+          <el-button type="danger" @click="resetAndLoad">查询</el-button>
+          <el-button @click="handleReset">重置</el-button>
         </el-form-item>
       </el-form>
     </el-card>
@@ -25,37 +29,31 @@
       <template #header>
         <div class="card-header">
           <span>SPU 商品列表</span>
-          <el-button type="danger" size="small" @click="showSpuDialog(null)">+ 新增商品</el-button>
+          <el-button type="danger" size="small" @click="openCreate">+ 新增商品</el-button>
         </div>
       </template>
-      <el-table :data="list" border stripe>
+      <el-table :data="list" border stripe v-loading="loading">
         <el-table-column label="商品图片" width="80">
-          <template #default>
-            <div class="thumb">
-              <el-icon :size="28" color="#FF2E93"><Picture /></el-icon>
+          <template #default="{ row }">
+            <el-image v-if="row.mainImage" :src="row.mainImage" fit="cover" style="width:48px;height:48px;border-radius:6px" />
+            <div v-else class="thumb">
+              <el-icon :size="24" color="#FF2E93"><Picture /></el-icon>
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="name" label="商品名称" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="category" label="类目" width="100" />
-        <el-table-column prop="brand" label="品牌" width="100" />
-        <el-table-column label="价格区间" width="120">
-          <template #default="{ row }">¥{{ row.minPrice }} ~ ¥{{ row.maxPrice }}</template>
+        <el-table-column prop="name" label="商品名称" min-width="220" show-overflow-tooltip />
+        <el-table-column prop="brand" label="品牌" width="110" show-overflow-tooltip />
+        <el-table-column label="价格区间" width="160">
+          <template #default="{ row }">¥{{ formatMoney(row.minPrice) }} ~ ¥{{ formatMoney(row.maxPrice) }}</template>
         </el-table-column>
-        <el-table-column label="状态" width="80" align="center">
+        <el-table-column label="销量" prop="totalSales" width="90" align="center" />
+        <el-table-column label="操作" width="200" fixed="right" align="center">
           <template #default="{ row }">
-            <el-tag :type="row.status === '上架' ? 'success' : 'info'" size="small">{{ row.status }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="240" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" @click="showSpuDialog(row)">编辑</el-button>
-            <el-button link type="primary" @click="showSkuDialog(row)">SKU 管理</el-button>
-            <el-popconfirm title="确认上架/下架？" @confirm="toggleStatus(row)">
+            <el-button link type="primary" @click="openDetail(row)">详情</el-button>
+            <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
+            <el-popconfirm title="确定删除该商品？" @confirm="handleDelete(row)">
               <template #reference>
-                <el-button link type="primary">
-                  {{ row.status === '上架' ? '下架' : '上架' }}
-                </el-button>
+                <el-button link type="danger">删除</el-button>
               </template>
             </el-popconfirm>
           </template>
@@ -64,245 +62,331 @@
       <div class="pagination-wrap">
         <el-pagination
           v-model:current-page="page"
-          :page-size="10"
+          :page-size="pageSize"
           :total="total"
           layout="total, prev, pager, next"
+          @current-change="loadData"
         />
       </div>
     </el-card>
 
-    <!-- SPU 编辑弹窗 -->
-    <el-dialog v-model="spuVisible" :title="spuEditId ? '编辑商品' : '新增商品'" width="800px" top="5vh">
-      <el-form ref="spuFormRef" :model="spuForm" :rules="spuRules" label-width="100px">
+    <!-- 新增/编辑弹窗 -->
+    <el-dialog v-model="dialogVisible" :title="editingId ? '编辑商品' : '新增商品'" width="760px" top="5vh">
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="商品名称" prop="name">
-              <el-input v-model="spuForm.name" placeholder="请输入商品名称" />
+              <el-input v-model="form.name" placeholder="请输入商品名称" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
+            <el-form-item label="副标题">
+              <el-input v-model="form.subtitle" placeholder="卖点/副标题" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
             <el-form-item label="类目" prop="categoryId">
               <el-tree-select
-                v-model="spuForm.categoryId"
+                v-model="form.categoryId"
                 :data="categoryTree"
                 :props="{ label: 'name', value: 'id' }"
                 placeholder="选择类目"
+                check-strictly
                 style="width:100%"
               />
             </el-form-item>
           </el-col>
-        </el-row>
-        <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="品牌">
-              <el-input v-model="spuForm.brand" placeholder="品牌名称" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="排序">
-              <el-input-number v-model="spuForm.sort" :min="0" :max="9999" />
+              <el-input v-model="form.brand" placeholder="品牌名称" />
             </el-form-item>
           </el-col>
         </el-row>
 
-        <!-- 商品图片上传 -->
         <el-form-item label="商品图片">
-          <el-upload
-            action="#"
-            list-type="picture-card"
-            :auto-upload="false"
-            :file-list="spuForm.images"
-          >
-            <el-icon><Plus /></el-icon>
-          </el-upload>
+          <div class="upload-wrap">
+            <el-upload
+              action="#"
+              :show-file-list="false"
+              :auto-upload="true"
+              :http-request="doUpload"
+              accept="image/*"
+            >
+              <el-button :loading="uploading" type="primary" plain size="small">上传图片</el-button>
+            </el-upload>
+            <div class="img-list">
+              <div v-for="(url, i) in form.images" :key="i" class="img-item">
+                <el-image :src="url" fit="cover" style="width:64px;height:64px;border-radius:6px" />
+                <el-icon class="img-del" @click="form.images.splice(i, 1)"><CircleCloseFilled /></el-icon>
+              </div>
+            </div>
+          </div>
         </el-form-item>
 
-        <!-- 富文本描述 -->
         <el-form-item label="商品描述">
-          <div class="editor-wrap">
-            <div class="editor-toolbar">
-              <el-button size="small" @click="execCmd('bold')"><b>B</b></el-button>
-              <el-button size="small" @click="execCmd('italic')"><i>I</i></el-button>
-              <el-button size="small" @click="execCmd('underline')"><u>U</u></el-button>
-              <el-button size="small" @click="execCmd('insertUnorderedList')">列表</el-button>
-              <el-button size="small" @click="insertImage">插入图片</el-button>
-            </div>
-            <div
-              ref="editorRef"
-              class="editor-content"
-              contenteditable="true"
-              v-html="spuForm.description"
-              @input="onEditorInput"
-              placeholder="请输入商品描述..."
-            ></div>
+          <el-input v-model="form.description" type="textarea" :rows="3" placeholder="商品详情描述（可选）" />
+        </el-form-item>
+
+        <!-- SKU（仅新增可编辑，后端更新不含 SKU） -->
+        <el-form-item v-if="!editingId" label="SKU 规格">
+          <div style="width:100%">
+            <el-table :data="form.skus" border stripe size="small">
+              <el-table-column label="规格" min-width="160">
+                <template #default="{ row }">
+                  <el-input v-model="row.spec" placeholder="如 曜石黑/8GB+128GB" size="small" />
+                </template>
+              </el-table-column>
+              <el-table-column label="售价(元)" width="130">
+                <template #default="{ row }">
+                  <el-input-number v-model="row.price" :min="0.01" :precision="2" size="small" controls-position="right" style="width:110px" />
+                </template>
+              </el-table-column>
+              <el-table-column label="库存" width="120">
+                <template #default="{ row }">
+                  <el-input-number v-model="row.stock" :min="0" size="small" controls-position="right" style="width:100px" />
+                </template>
+              </el-table-column>
+              <el-table-column label="SKU 编码" min-width="140">
+                <template #default="{ row }">
+                  <el-input v-model="row.skuCode" placeholder="编码" size="small" />
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="70" align="center">
+                <template #default="{ $index }">
+                  <el-button link type="danger" @click="form.skus.splice($index, 1)">删除</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+            <el-button size="small" style="margin-top:8px" @click="addSkuRow">+ 添加规格</el-button>
           </div>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="spuVisible = false">取消</el-button>
-        <el-button type="danger" @click="saveSpu">保存</el-button>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="danger" :loading="submitting" @click="handleSave">保存</el-button>
       </template>
     </el-dialog>
 
-    <!-- SKU 管理弹窗 -->
-    <el-dialog v-model="skuVisible" title="SKU 管理" width="700px">
-      <template v-if="skuSpuName">
-        <div class="sku-spu-name">商品：{{ skuSpuName }}</div>
-        <el-table :data="skuList" border stripe>
-          <el-table-column label="规格" prop="spec" width="160" />
-          <el-table-column label="价格(元)" width="120">
-            <template #default="{ row, $index }">
-              <el-input-number v-model="row.price" :min="0.01" :precision="2" size="small" controls-position="right" style="width:110px" />
-            </template>
-          </el-table-column>
-          <el-table-column label="库存" width="120">
-            <template #default="{ row, $index }">
-              <el-input-number v-model="row.stock" :min="0" size="small" controls-position="right" style="width:100px" />
-            </template>
-          </el-table-column>
-          <el-table-column label="编码" prop="skuCode" min-width="120" />
-          <el-table-column label="操作" width="80">
-            <template #default="{ $index }">
-              <el-popconfirm title="确认删除？" @confirm="skuList.splice($index, 1)">
-                <template #reference>
-                  <el-button link type="danger">删除</el-button>
-                </template>
-              </el-popconfirm>
-            </template>
-          </el-table-column>
-        </el-table>
-        <div style="margin-top:12px">
-          <el-button size="small" @click="addSkuRow">+ 添加规格</el-button>
+    <!-- 详情弹窗 -->
+    <el-dialog v-model="detailVisible" title="商品详情" width="700px">
+      <template v-if="detail">
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="商品名称" :span="2">{{ detail.name }}</el-descriptions-item>
+          <el-descriptions-item label="副标题">{{ detail.subtitle || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="品牌">{{ detail.brand || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="价格区间">
+            ¥{{ formatMoney(detail.minPrice) }} ~ ¥{{ formatMoney(detail.maxPrice) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="销量">{{ detail.totalSales }}</el-descriptions-item>
+          <el-descriptions-item label="商品描述" :span="2">{{ detail.description || '-' }}</el-descriptions-item>
+        </el-descriptions>
+        <div v-if="detail.images && detail.images.length" style="margin-top:12px">
+          <div style="margin-bottom:6px;color:#666">商品图片</div>
+          <el-image
+            v-for="(img, i) in detail.images"
+            :key="i"
+            :src="img.url"
+            :preview-src-list="detail.images.map(x => x.url)"
+            fit="cover"
+            style="width:72px;height:72px;border-radius:6px;margin-right:8px"
+          />
         </div>
-      </template>
-      <template #footer>
-        <el-button @click="skuVisible = false">关闭</el-button>
-        <el-button type="danger" @click="saveSku">保存 SKU</el-button>
+        <el-table :data="detail.skus" border stripe style="margin-top:12px" size="small">
+          <el-table-column prop="skuCode" label="SKU 编码" min-width="140" />
+          <el-table-column label="售价" width="120">
+            <template #default="{ row }">¥{{ formatMoney(row.price) }}</template>
+          </el-table-column>
+          <el-table-column prop="stock" label="库存" width="100" align="center" />
+        </el-table>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, nextTick } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Picture, Plus } from '@element-plus/icons-vue'
+import { Picture, CircleCloseFilled } from '@element-plus/icons-vue'
+import { getSpuList, getSpuDetail, createSpu, updateSpu, deleteSpu, uploadImage } from '@/api/product'
+import { getCategoryTree } from '@/api/category'
 
-const search = reactive({ name: '', category: '' })
+const search = reactive({ keyword: '', categoryId: null })
 const list = ref([])
 const page = ref(1)
+const pageSize = 10
 const total = ref(0)
+const loading = ref(false)
 
-// SPU 弹窗
-const spuVisible = ref(false)
-const spuEditId = ref(null)
-const spuFormRef = ref()
-const editorRef = ref()
 const categoryTree = ref([])
-const spuForm = reactive({
+
+const dialogVisible = ref(false)
+const detailVisible = ref(false)
+const detail = ref(null)
+const editingId = ref(null)
+const submitting = ref(false)
+const uploading = ref(false)
+const formRef = ref()
+
+const form = reactive({
   name: '',
+  subtitle: '',
   categoryId: null,
   brand: '',
-  sort: 0,
-  images: [],
   description: '',
+  images: [],
+  skus: [],
 })
 
-const spuRules = {
+const rules = {
   name: [{ required: true, message: '请输入商品名称', trigger: 'blur' }],
   categoryId: [{ required: true, message: '请选择类目', trigger: 'change' }],
 }
 
-// SKU 弹窗
-const skuVisible = ref(false)
-const skuSpuName = ref('')
-const skuList = ref([])
-
-function loadData() {
-  list.value = [
-    { id: 1, name: '旗舰智能手机 5G全网通 高清拍照 12GB+256GB', category: '手机数码', brand: '小米', minPrice: 3999, maxPrice: 5999, status: '上架' },
-    { id: 2, name: '轻薄笔记本电脑 14英寸 商务办公 学生本', category: '手机数码', brand: '联想', minPrice: 4599, maxPrice: 5299, status: '上架' },
-    { id: 3, name: '智能4K电视 65英寸 全面屏 家庭影院', category: '家用电器', brand: '海信', minPrice: 3299, maxPrice: 4999, status: '下架' },
-    { id: 4, name: '蓝牙降噪耳机 无线 长续航 HiFi音质', category: '手机数码', brand: '华为', minPrice: 599, maxPrice: 999, status: '上架' },
-    { id: 5, name: '运动跑鞋 透气网面 轻便减震 男女同款', category: '服饰鞋包', brand: '李宁', minPrice: 299, maxPrice: 599, status: '上架' },
-  ]
-  total.value = list.value.length
-
-  categoryTree.value = [
-    { id: 1, name: '手机数码', children: [
-      { id: 11, name: '智能手机' }, { id: 12, name: '手机配件' }, { id: 13, name: '平板电脑' },
-    ]},
-    { id: 2, name: '家用电器', children: [
-      { id: 21, name: '大家电' }, { id: 22, name: '小家电' },
-    ]},
-    { id: 3, name: '服饰鞋包', children: [
-      { id: 31, name: '女装' }, { id: 32, name: '男装' },
-    ]},
-  ]
+function formatMoney(v) {
+  if (v === null || v === undefined) return '0.00'
+  return Number(v).toFixed(2)
 }
 
-function showSpuDialog(row) {
-  if (row) {
-    spuEditId.value = row.id
-    Object.assign(spuForm, { name: row.name, categoryId: null, brand: row.brand, sort: 0, images: [], description: '<p>商品详情描述内容</p>' })
-  } else {
-    spuEditId.value = null
-    Object.assign(spuForm, { name: '', categoryId: null, brand: '', sort: 0, images: [], description: '' })
-  }
-  spuVisible.value = true
+async function loadCategories() {
+  const res = await getCategoryTree()
+  categoryTree.value = res.data || []
 }
 
-function execCmd(cmd) {
-  document.execCommand(cmd, false, null)
-  editorRef.value?.focus()
-}
-
-function insertImage() {
-  const url = prompt('请输入图片 URL：')
-  if (url) {
-    document.execCommand('insertImage', false, url)
+async function loadData() {
+  loading.value = true
+  try {
+    const res = await getSpuList({
+      pageNum: page.value,
+      pageSize,
+      keyword: search.keyword || undefined,
+      categoryId: search.categoryId || undefined,
+    })
+    list.value = res.data?.list || []
+    total.value = res.data?.total || 0
+  } finally {
+    loading.value = false
   }
 }
 
-function onEditorInput() {
-  spuForm.description = editorRef.value?.innerHTML || ''
+function resetAndLoad() {
+  page.value = 1
+  loadData()
 }
 
-function saveSpu() {
-  spuFormRef.value?.validate((valid) => {
-    if (!valid) return
-    ElMessage.success(spuEditId.value ? '编辑成功' : '新增成功')
-    spuVisible.value = false
-    loadData()
-  })
-}
-
-function showSkuDialog(row) {
-  skuSpuName.value = row.name
-  skuList.value = [
-    { spec: '曜石黑 / 8GB+128GB', price: 3999, stock: 200, skuCode: row.id + '-BK-8' },
-    { spec: '曜石黑 / 12GB+256GB', price: 4299, stock: 150, skuCode: row.id + '-BK-12' },
-    { spec: '陶瓷白 / 12GB+256GB', price: 4399, stock: 180, skuCode: row.id + '-WH-12' },
-    { spec: '渐变蓝 / 16GB+512GB', price: 4999, stock: 80, skuCode: row.id + '-BL-16' },
-  ]
-  skuVisible.value = true
+function handleReset() {
+  search.keyword = ''
+  search.categoryId = null
+  resetAndLoad()
 }
 
 function addSkuRow() {
-  skuList.value.push({ spec: '', price: 0, stock: 0, skuCode: '' })
+  form.skus.push({ spec: '', price: 0.01, stock: 0, skuCode: '' })
 }
 
-function saveSku() {
-  ElMessage.success('SKU 保存成功')
-  skuVisible.value = false
+function openCreate() {
+  editingId.value = null
+  Object.assign(form, { name: '', subtitle: '', categoryId: null, brand: '', description: '', images: [], skus: [] })
+  addSkuRow()
+  dialogVisible.value = true
 }
 
-function toggleStatus(row) {
-  row.status = row.status === '上架' ? '下架' : '上架'
-  ElMessage.success(row.status === '上架' ? '已上架' : '已下架')
+async function openEdit(row) {
+  const res = await getSpuDetail(row.id)
+  const d = res.data || {}
+  editingId.value = row.id
+  Object.assign(form, {
+    name: d.name || '',
+    subtitle: d.subtitle || '',
+    categoryId: d.categoryId || null,
+    brand: d.brand || '',
+    description: d.description || '',
+    images: (d.images || []).map((x) => x.url),
+    skus: [],
+  })
+  dialogVisible.value = true
 }
 
-onMounted(loadData)
+async function openDetail(row) {
+  const res = await getSpuDetail(row.id)
+  detail.value = res.data
+  detailVisible.value = true
+}
+
+async function doUpload(opt) {
+  uploading.value = true
+  try {
+    const res = await uploadImage(opt.file)
+    if (res.data) form.images.push(res.data)
+    opt.onSuccess?.(res.data)
+  } catch (e) {
+    opt.onError?.(e)
+  } finally {
+    uploading.value = false
+  }
+}
+
+function handleSave() {
+  formRef.value?.validate(async (valid) => {
+    if (!valid) return
+    if (!editingId.value && (!form.skus.length || form.skus.some((s) => !s.price || s.stock === null || s.stock === undefined))) {
+      ElMessage.warning('请完整填写至少一个 SKU（售价与库存）')
+      return
+    }
+    submitting.value = true
+    try {
+      if (editingId.value) {
+        await updateSpu({
+          id: editingId.value,
+          name: form.name,
+          subtitle: form.subtitle,
+          categoryId: form.categoryId,
+          brand: form.brand,
+          description: form.description,
+          images: form.images,
+        })
+        ElMessage.success('编辑成功')
+      } else {
+        const prices = form.skus.map((s) => Number(s.price)).filter((p) => !Number.isNaN(p))
+        await createSpu({
+          name: form.name,
+          subtitle: form.subtitle,
+          categoryId: form.categoryId,
+          brand: form.brand,
+          description: form.description,
+          images: form.images,
+          minPrice: prices.length ? Math.min(...prices) : 0,
+          maxPrice: prices.length ? Math.max(...prices) : 0,
+          sort: 0,
+          skus: form.skus.map((s, i) => ({
+            spec: s.spec,
+            price: s.price,
+            stock: s.stock,
+            skuCode: s.skuCode || undefined,
+            sort: i,
+          })),
+        })
+        ElMessage.success('新增成功')
+      }
+      dialogVisible.value = false
+      loadData()
+    } finally {
+      submitting.value = false
+    }
+  })
+}
+
+async function handleDelete(row) {
+  await deleteSpu(row.id)
+  ElMessage.success('已删除')
+  loadData()
+}
+
+onMounted(() => {
+  loadCategories()
+  loadData()
+})
 </script>
 
 <style scoped>
@@ -312,8 +396,8 @@ onMounted(loadData)
   align-items: center;
 }
 .thumb {
-  width: 50px;
-  height: 50px;
+  width: 48px;
+  height: 48px;
   background: #fafafa;
   border-radius: 6px;
   display: flex;
@@ -325,37 +409,27 @@ onMounted(loadData)
   justify-content: flex-end;
   margin-top: 16px;
 }
-.editor-wrap {
-  border: 1px solid #dcdfe6;
-  border-radius: 4px;
-  overflow: hidden;
-}
-.editor-toolbar {
+.upload-wrap {
   display: flex;
-  gap: 4px;
-  padding: 6px 8px;
-  border-bottom: 1px solid #dcdfe6;
-  background: #fafafa;
+  flex-direction: column;
+  gap: 8px;
+}
+.img-list {
+  display: flex;
   flex-wrap: wrap;
+  gap: 8px;
 }
-.editor-content {
-  min-height: 200px;
-  padding: 12px;
-  outline: none;
-  line-height: 1.8;
-  font-size: 14px;
+.img-item {
+  position: relative;
 }
-.editor-content:empty::before {
-  content: attr(placeholder);
-  color: #ccc;
-}
-.sku-spu-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 12px;
-  padding: 8px 12px;
-  background: #f5f5f5;
-  border-radius: 4px;
+.img-del {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  color: #f56c6c;
+  cursor: pointer;
+  font-size: 16px;
+  background: #fff;
+  border-radius: 50%;
 }
 </style>
